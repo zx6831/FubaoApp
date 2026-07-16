@@ -16,8 +16,10 @@
 cd apps\fubao_app
 flutter pub get
 flutter test
-flutter run -d windows
+flutter run -d chrome
 ```
+
+若本机 Visual Studio C++ 工具链配置完整，也可用 `flutter run -d windows` 调试桌面版。
 
 如需 iOS 真机调试，请在 macOS 安装 Xcode 后执行：
 
