@@ -1,0 +1,11 @@
+.worktrees/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.idea/
+.vscode/
+build/
+coverage/
+node_modules/
+.env
+*.log
