@@ -4,6 +4,7 @@ import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
+import '../../domain/models.dart';
 
 class ElderHomePage extends StatelessWidget {
   const ElderHomePage({required this.repository, super.key});
@@ -15,8 +16,7 @@ class ElderHomePage extends StatelessWidget {
         child: AnimatedBuilder(
           animation: repository,
           builder: (context, _) {
-            final medicine =
-                repository.tasks.firstWhere((task) => task.id == 'medicine');
+            final medicine = _primaryTask(repository.tasks);
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
               children: [
@@ -36,83 +36,113 @@ class ElderHomePage extends StatelessWidget {
                   const ReadAloudButton(text: '早上好，王阿姨。今天要做的事是按时吃药和记录血压。'),
                 ]),
                 const SizedBox(height: 20),
-                FubaoCard(
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('今天要做的事',
-                            style: TextStyle(
-                                fontSize: 29, fontWeight: FontWeight.w900)),
-                        const SizedBox(height: 18),
-                        Row(children: [
-                          const FubaoIllustrationBubble(
-                            illustration: FubaoIllustration.pill,
-                            size: 120,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                Text(medicine.title,
-                                    style: const TextStyle(
-                                        fontSize: 30,
-                                        fontWeight: FontWeight.w900)),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.access_time_rounded,
-                                      size: 25,
-                                      color: FubaoColors.mintStrong,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          medicine.timeLabel,
-                                          maxLines: 1,
-                                          style: const TextStyle(
-                                            fontSize: 23,
-                                            fontWeight: FontWeight.w700,
+                if (medicine == null)
+                  FubaoCard(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(children: [
+                      const Icon(Icons.event_available_rounded,
+                          size: 58, color: FubaoColors.mintStrong),
+                      const SizedBox(height: 14),
+                      const Text('今天还没有任务',
+                          style: TextStyle(
+                              fontSize: 27, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 8),
+                      const Text('家人创建计划后，会在这里提醒你',
+                          style: TextStyle(
+                              color: FubaoColors.inkMuted, fontSize: 18)),
+                      const SizedBox(height: 18),
+                      OutlinedButton.icon(
+                        onPressed: repository.refresh,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('刷新看看'),
+                      ),
+                    ]),
+                  )
+                else
+                  FubaoCard(
+                    padding: const EdgeInsets.all(22),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('今天要做的事',
+                              style: TextStyle(
+                                  fontSize: 29, fontWeight: FontWeight.w900)),
+                          const SizedBox(height: 18),
+                          Row(children: [
+                            const FubaoIllustrationBubble(
+                              illustration: FubaoIllustration.pill,
+                              size: 120,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  Text(medicine.title,
+                                      style: const TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w900)),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.access_time_rounded,
+                                        size: 25,
+                                        color: FubaoColors.mintStrong,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            medicine.timeLabel,
+                                            maxLines: 1,
+                                            style: const TextStyle(
+                                              fontSize: 23,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ])),
+                                    ],
+                                  ),
+                                ])),
+                          ]),
+                          const SizedBox(height: 20),
+                          if (!medicine.isCompleted) ...[
+                            _LargeTaskButton(
+                              label: '我已经吃了',
+                              icon: Icons.check_rounded,
+                              color: FubaoColors.mintStrong,
+                              onTap: () => repository.setTaskCompleted(
+                                  medicine.id, true),
+                            ),
+                            const SizedBox(height: 12),
+                            _LargeTaskButton(
+                              label: '我还没吃',
+                              icon: Icons.radio_button_unchecked_rounded,
+                              color: FubaoColors.orangeStrong,
+                              onTap: () async {
+                                await repository.setTaskSkipped(medicine.id);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('已记录今天没做，家人会看到这个状态')),
+                                  );
+                                }
+                              },
+                            ),
+                          ] else
+                            _LargeTaskButton(
+                              label: '已完成',
+                              icon: Icons.check_circle_rounded,
+                              color: FubaoColors.mintStrong,
+                              onTap: () {},
+                            ),
                         ]),
-                        const SizedBox(height: 20),
-                        if (!medicine.isCompleted) ...[
-                          _LargeTaskButton(
-                            label: '我已经吃了',
-                            icon: Icons.check_rounded,
-                            color: FubaoColors.mintStrong,
-                            onTap: () =>
-                                repository.setTaskCompleted('medicine', true),
-                          ),
-                          const SizedBox(height: 12),
-                          _LargeTaskButton(
-                            label: '我还没吃',
-                            icon: Icons.radio_button_unchecked_rounded,
-                            color: FubaoColors.orangeStrong,
-                            onTap: () => ScaffoldMessenger.of(context)
-                                .showSnackBar(
-                                    const SnackBar(content: Text('稍后会再次提醒你'))),
-                          ),
-                        ] else
-                          _LargeTaskButton(
-                            label: '已完成',
-                            icon: Icons.check_circle_rounded,
-                            color: FubaoColors.mintStrong,
-                            onTap: () {},
-                          ),
-                      ]),
-                ),
+                  ),
                 const SizedBox(height: 16),
                 FubaoCard(
                   onTap: () => ScaffoldMessenger.of(context).showSnackBar(
@@ -140,6 +170,14 @@ class ElderHomePage extends StatelessWidget {
           },
         ),
       );
+}
+
+HealthTask? _primaryTask(List<HealthTask> tasks) {
+  if (tasks.isEmpty) return null;
+  for (final task in tasks) {
+    if (task.kind == TaskKind.medicine) return task;
+  }
+  return tasks.first;
 }
 
 class _LargeTaskButton extends StatelessWidget {

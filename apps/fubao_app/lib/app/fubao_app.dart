@@ -4,6 +4,7 @@ import '../data/fubao_repository.dart';
 import '../data/demo_fubao_repository.dart';
 import '../data/remote_api_client.dart';
 import '../data/remote_app_controller.dart';
+import '../data/remote_fubao_repository.dart';
 import '../data/session_store.dart';
 import '../design/fubao_theme.dart';
 import '../domain/models.dart';
@@ -43,8 +44,6 @@ class _FubaoAppState extends State<FubaoApp> {
   void initState() {
     super.initState();
     _config = widget.config ?? AppConfig.fromValues();
-    _ownsRepository = widget.repository == null;
-    _repository = widget.repository ?? DemoFubaoRepository();
     if (_config.usesRemoteApi) {
       _ownsRemoteController = widget.remoteController == null;
       _remoteController = widget.remoteController ??
@@ -54,12 +53,31 @@ class _FubaoAppState extends State<FubaoApp> {
               sessionStore: PlatformSessionStore(),
             ),
           );
+      _remoteController!.addListener(_handleRemoteState);
+    }
+    _ownsRepository = widget.repository == null;
+    _repository = widget.repository ??
+        (_config.usesRemoteApi
+            ? RemoteFubaoRepository(_remoteController!.api)
+            : DemoFubaoRepository());
+    if (_config.usesRemoteApi) {
       _remoteController!.initialize();
+    }
+  }
+
+  void _handleRemoteState() {
+    final repository = _repository;
+    if (repository is! RemoteFubaoRepository) return;
+    if (_remoteController?.state == RemoteFlowState.ready) {
+      repository.start();
+    } else if (_remoteController?.state == RemoteFlowState.signedOut) {
+      repository.clear();
     }
   }
 
   @override
   void dispose() {
+    _remoteController?.removeListener(_handleRemoteState);
     if (_ownsRepository) _repository.dispose();
     if (_ownsRemoteController) _remoteController?.dispose();
     super.dispose();

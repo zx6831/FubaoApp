@@ -60,6 +60,52 @@ export interface MemoryDevice {
   };
 }
 
+export type MemoryTaskKind = 'medicine' | 'bloodPressure' | 'bloodGlucose' | 'walk' | 'mood' | 'weight' | 'custom';
+export type MemoryPlanStatus = 'active' | 'paused' | 'ended';
+export type MemoryTaskStatus = 'pending' | 'completed' | 'skipped' | 'abnormal';
+
+export interface MemoryPlan {
+  id: string;
+  familyId: string;
+  subjectUserId: string;
+  createdById: string;
+  kind: MemoryTaskKind;
+  title: string;
+  subtitle?: string;
+  timezone: 'Asia/Shanghai';
+  schedule: { time: string; daysOfWeek: number[] };
+  enrollmentData?: unknown;
+  status: MemoryPlanStatus;
+  startsAt: Date;
+  pausedAt: Date | null;
+  endedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MemoryDailyTask {
+  id: string;
+  familyId: string;
+  planId: string;
+  userId: string;
+  date: string;
+  kind: MemoryTaskKind;
+  title: string;
+  subtitle?: string;
+  reminderAt: Date;
+  status: MemoryTaskStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  record?: {
+    id: string;
+    idempotencyKey: string;
+    status: MemoryTaskStatus;
+    source: string;
+    data?: unknown;
+    completedAt: Date;
+  };
+}
+
 @Injectable()
 export class MemoryIdentityState {
   readonly verificationCodes = new Map<string, { code: string; expiresAt: Date }>();
@@ -70,4 +116,7 @@ export class MemoryIdentityState {
   readonly invitations = new Map<string, MemoryInvitation>();
   readonly healthProfiles = new Map<string, MemoryHealthProfile>();
   readonly devices = new Map<string, MemoryDevice>();
+  readonly plans = new Map<string, MemoryPlan>();
+  readonly dailyTasks = new Map<string, MemoryDailyTask>();
+  readonly taskRecordsByIdempotencyKey = new Map<string, MemoryDailyTask['record']>();
 }

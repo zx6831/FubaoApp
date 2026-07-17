@@ -52,10 +52,13 @@ describe('Fubao API', () => {
     expect(joined.body.data.role).toBe('elder');
   });
 
-  it('completes a task idempotently', async () => {
-    const first = await request(app.getHttpServer()).post('/api/tasks/medicine/complete').set('Authorization', `Bearer ${childToken}`).set('Idempotency-Key', 'medicine-demo').expect(201);
-    const second = await request(app.getHttpServer()).post('/api/tasks/medicine/complete').set('Authorization', `Bearer ${childToken}`).set('Idempotency-Key', 'medicine-demo').expect(201);
-    expect(second.body.data.completedAt).toBe(first.body.data.completedAt);
+  it('prevents a child from completing an elder task', async () => {
+    await request(app.getHttpServer())
+      .post('/api/tasks/medicine/complete')
+      .set('Authorization', `Bearer ${childToken}`)
+      .set('Idempotency-Key', 'medicine-demo')
+      .send({})
+      .expect(403);
   });
 
   it('creates a care reminder without diagnosis wording', async () => {

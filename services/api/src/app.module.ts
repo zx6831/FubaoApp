@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { RolesGuard } from './auth/roles.guard';
 import { FamilyModule } from './families/family.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { PlansModule } from './plans/plans.module';
 import { FubaoController } from './fubao.controller';
 import { FubaoService } from './fubao.service';
 import { validateEnvironment } from './infrastructure/environment';
@@ -29,6 +30,7 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
     AuthModule,
     FamilyModule,
     OnboardingModule,
+    PlansModule,
   ],
   controllers: [FubaoController],
   providers: [

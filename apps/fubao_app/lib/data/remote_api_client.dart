@@ -34,7 +34,8 @@ class RemoteApiClient {
 
   Future<AuthSession?> restoreSession() async {
     _session = await _sessionStore.read();
-    if (_session != null && _session!.refreshTokenExpiresAt.isBefore(DateTime.now())) {
+    if (_session != null &&
+        _session!.refreshTokenExpiresAt.isBefore(DateTime.now())) {
       await clearSession();
     }
     return _session;
@@ -47,13 +48,16 @@ class RemoteApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool authenticated = true,
+    Map<String, String>? headers,
   }) =>
-      _request('POST', path, body: body, authenticated: authenticated);
+      _request('POST', path,
+          body: body, authenticated: authenticated, extraHeaders: headers);
 
   Future<Map<String, dynamic>> put(String path, {Map<String, dynamic>? body}) =>
       _request('PUT', path, body: body, authenticated: true);
 
-  Future<Map<String, dynamic>> patch(String path, {Map<String, dynamic>? body}) =>
+  Future<Map<String, dynamic>> patch(String path,
+          {Map<String, dynamic>? body}) =>
       _request('PATCH', path, body: body, authenticated: true);
 
   Future<Map<String, dynamic>> delete(String path) =>
@@ -75,10 +79,16 @@ class RemoteApiClient {
     Map<String, dynamic>? body,
     required bool authenticated,
     bool mayRefresh = true,
+    Map<String, String>? extraHeaders,
   }) async {
-    if (authenticated && _session == null) throw const ApiException(401, '请先登录');
+    if (authenticated && _session == null) {
+      throw const ApiException(401, '请先登录');
+    }
     final headers = <String, String>{'Content-Type': 'application/json'};
-    if (authenticated) headers['Authorization'] = 'Bearer ${_session!.accessToken}';
+    if (authenticated) {
+      headers['Authorization'] = 'Bearer ${_session!.accessToken}';
+    }
+    if (extraHeaders != null) headers.addAll(extraHeaders);
     final uri = Uri.parse('$_baseUrl/${path.replaceFirst(RegExp(r'^/+'), '')}');
     final encodedBody = jsonEncode(body ?? const {});
     final response = switch (method) {
@@ -89,10 +99,20 @@ class RemoteApiClient {
       _ => await _http.post(uri, headers: headers, body: encodedBody),
     };
 
-    if (response.statusCode == 401 && authenticated && mayRefresh && _session != null) {
+    if (response.statusCode == 401 &&
+        authenticated &&
+        mayRefresh &&
+        _session != null) {
       final refreshed = await _refreshSession();
       if (refreshed) {
-        return _request(method, path, body: body, authenticated: true, mayRefresh: false);
+        return _request(
+          method,
+          path,
+          body: body,
+          authenticated: true,
+          mayRefresh: false,
+          extraHeaders: extraHeaders,
+        );
       }
     }
 
@@ -102,10 +122,14 @@ class RemoteApiClient {
     } catch (_) {
       throw ApiException(response.statusCode, '服务器返回了无法识别的内容');
     }
-    if (response.statusCode < 200 || response.statusCode >= 300 || envelope['code'] != 0) {
-      throw ApiException(response.statusCode, envelope['msg']?.toString() ?? '请求失败');
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        envelope['code'] != 0) {
+      throw ApiException(
+          response.statusCode, envelope['msg']?.toString() ?? '请求失败');
     }
-    return (envelope['data'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+    return (envelope['data'] as Map?)?.cast<String, dynamic>() ??
+        <String, dynamic>{};
   }
 
   Future<bool> _refreshSession() async {

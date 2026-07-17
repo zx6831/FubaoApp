@@ -16,8 +16,14 @@ class ElderPlansPage extends StatelessWidget {
         child: AnimatedBuilder(
           animation: repository,
           builder: (context, _) {
-            final medicine =
-                repository.tasks.firstWhere((task) => task.id == 'medicine');
+            final medicine = _primaryPlanTask(repository.tasks);
+            final upcoming = medicine == null
+                ? const <HealthTask>[]
+                : repository.tasks
+                    .where((task) =>
+                        task.id != medicine.id &&
+                        task.kind != TaskKind.bloodPressure)
+                    .toList();
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
               children: [
@@ -37,39 +43,58 @@ class ElderPlansPage extends StatelessWidget {
                     style:
                         TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 12),
-                _ElderTaskCard(
-                  task: medicine,
-                  illustration: FubaoIllustration.pill,
-                  completed: medicine.isCompleted,
-                  onTap: () => repository.setTaskCompleted('medicine', true),
-                ),
+                if (medicine == null)
+                  FubaoCard(
+                    padding: const EdgeInsets.all(26),
+                    child: const Center(
+                        child: Text('今天还没有任务',
+                            style: TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.w800))),
+                  )
+                else
+                  _ElderTaskCard(
+                    task: medicine,
+                    illustration: FubaoIllustration.pill,
+                    completed: medicine.isCompleted,
+                    onTap: () => repository.setTaskCompleted(medicine.id, true),
+                  ),
                 const SizedBox(height: 22),
                 const Text('接下来的事',
                     style:
                         TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 12),
-                _ElderTaskCard(
-                  task:
-                      repository.tasks.firstWhere((task) => task.id == 'walk'),
-                  illustration: FubaoIllustration.elderPark,
-                  onTap: () => repository.setTaskCompleted('walk', true),
-                ),
-                const SizedBox(height: 12),
-                _ElderTaskCard(
-                  task:
-                      repository.tasks.firstWhere((task) => task.id == 'mood'),
-                  illustration: FubaoIllustration.elderMood,
-                  completed: repository.tasks
-                      .firstWhere((task) => task.id == 'mood')
-                      .isCompleted,
-                  onTap: () => repository.setTaskCompleted('mood', true),
-                ),
+                for (var i = 0; i < upcoming.length; i++) ...[
+                  _ElderTaskCard(
+                    task: upcoming[i],
+                    illustration: _illustrationFor(upcoming[i].kind),
+                    completed: upcoming[i].isCompleted,
+                    onTap: () =>
+                        repository.setTaskCompleted(upcoming[i].id, true),
+                  ),
+                  if (i != upcoming.length - 1) const SizedBox(height: 12),
+                ],
               ],
             );
           },
         ),
       );
 }
+
+HealthTask? _primaryPlanTask(List<HealthTask> tasks) {
+  if (tasks.isEmpty) return null;
+  for (final task in tasks) {
+    if (task.kind == TaskKind.medicine) return task;
+  }
+  return tasks.first;
+}
+
+FubaoIllustration _illustrationFor(TaskKind kind) => switch (kind) {
+      TaskKind.medicine => FubaoIllustration.pill,
+      TaskKind.bloodPressure => FubaoIllustration.elderBloodPressureDevice,
+      TaskKind.walk => FubaoIllustration.elderPark,
+      TaskKind.mood => FubaoIllustration.elderMood,
+      _ => FubaoIllustration.planClipboard,
+    };
 
 class _ElderWeekStrip extends StatelessWidget {
   const _ElderWeekStrip();

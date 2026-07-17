@@ -11,11 +11,19 @@ abstract interface class FubaoRepository implements Listenable {
 
   Future<void> refresh();
 
+  Future<HealthPlan> createPlan(PlanDraft draft);
+
   Future<void> setTaskCompleted(
     String id,
     bool value, {
     String? idempotencyKey,
   });
+
+  Future<void> setTaskSkipped(String id, {String? idempotencyKey});
+
+  Future<void> updatePlanStatus(String id, String status);
+
+  Future<bool> remindTask(String id);
 
   void dispose();
 }

@@ -416,8 +416,11 @@ class SafetyNote extends StatelessWidget {
 IconData iconForTask(TaskKind kind) => switch (kind) {
       TaskKind.medicine => Icons.medication_rounded,
       TaskKind.bloodPressure => Icons.monitor_heart_outlined,
+      TaskKind.bloodGlucose => Icons.bloodtype_outlined,
       TaskKind.walk => Icons.directions_walk_rounded,
       TaskKind.mood => Icons.sentiment_satisfied_alt_rounded,
+      TaskKind.weight => Icons.monitor_weight_outlined,
+      TaskKind.custom => Icons.fact_check_outlined,
     };
 
 class FubaoBottomNavigation extends StatelessWidget {

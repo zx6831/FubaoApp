@@ -44,7 +44,7 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   List<HealthTask> get tasks => List.unmodifiable(_tasks);
 
   @override
-  final plans = const [
+  final List<HealthPlan> plans = [
     HealthPlan(
       id: 'blood-pressure',
       title: '血压管理',
@@ -90,6 +90,24 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   Future<void> refresh() async {}
 
   @override
+  Future<HealthPlan> createPlan(PlanDraft draft) async {
+    final plan = HealthPlan(
+      id: 'demo-${DateTime.now().microsecondsSinceEpoch}',
+      title: draft.title,
+      description: draft.subtitle,
+      completed: 0,
+      total: 1,
+      icon: Icons.fact_check_outlined,
+      kind: draft.kind,
+      reminderTime: draft.reminderTime,
+      daysOfWeek: draft.daysOfWeek,
+    );
+    plans.add(plan);
+    notifyListeners();
+    return plan;
+  }
+
+  @override
   Future<void> setTaskCompleted(
     String id,
     bool value, {
@@ -101,4 +119,22 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
     ];
     notifyListeners();
   }
+
+  @override
+  Future<void> setTaskSkipped(String id, {String? idempotencyKey}) async {
+    _tasks = [
+      for (final task in _tasks)
+        if (task.id == id)
+          task.copyWith(isCompleted: false, isSkipped: true)
+        else
+          task,
+    ];
+    notifyListeners();
+  }
+
+  @override
+  Future<void> updatePlanStatus(String id, String status) async {}
+
+  @override
+  Future<bool> remindTask(String id) async => true;
 }

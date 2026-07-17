@@ -6,6 +6,7 @@ import '../../design/fubao_illustrations.dart';
 import '../../domain/models.dart';
 import '../../widgets/fubao_widgets.dart';
 import 'create_plan_page.dart';
+import 'plan_detail_page.dart';
 
 class ChildPlansPage extends StatelessWidget {
   const ChildPlansPage({required this.repository, super.key});
@@ -30,14 +31,19 @@ class ChildPlansPage extends StatelessWidget {
                 style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
             const SizedBox(height: 10),
             for (var i = 0; i < repository.plans.length; i++) ...[
-              _PlanCard(plan: repository.plans[i], index: i),
+              _PlanCard(
+                  plan: repository.plans[i], index: i, repository: repository),
               const SizedBox(height: 10),
             ],
             const SizedBox(height: 2),
             OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const CreatePlanPage()),
-              ),
+              onPressed: () async {
+                final created = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute<bool>(
+                      builder: (_) => CreatePlanPage(repository: repository)),
+                );
+                if (created == true) await repository.refresh();
+              },
               icon: const Icon(Icons.add_circle_outline_rounded),
               label: const Text('添加计划'),
               style: OutlinedButton.styleFrom(
@@ -181,11 +187,16 @@ class _MonthCard extends StatelessWidget {
 }
 
 class _PlanCard extends StatelessWidget {
-  const _PlanCard({required this.plan, required this.index});
+  const _PlanCard(
+      {required this.plan, required this.index, required this.repository});
   final HealthPlan plan;
   final int index;
+  final FubaoRepository repository;
   @override
   Widget build(BuildContext context) => FubaoCard(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => PlanDetailPage(repository: repository, plan: plan),
+        )),
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
@@ -204,7 +215,8 @@ class _PlanCard extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.w900)),
                   const SizedBox(height: 5),
-                  Text('● 进行中 · 今日 ${plan.completed}/${plan.total} 已完成',
+                  Text(
+                      '● ${_statusLabel(plan.status)} · 今日 ${plan.completed}/${plan.total} 已完成',
                       style: const TextStyle(
                           color: FubaoColors.inkMuted, fontSize: 12)),
                   const SizedBox(height: 4),
@@ -222,3 +234,9 @@ class _PlanCard extends StatelessWidget {
         ),
       );
 }
+
+String _statusLabel(String status) => switch (status) {
+      'paused' => '已暂停',
+      'ended' => '已结束',
+      _ => '进行中',
+    };
