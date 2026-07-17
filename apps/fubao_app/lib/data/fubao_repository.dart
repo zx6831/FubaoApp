@@ -11,6 +11,10 @@ abstract interface class FubaoRepository implements Listenable {
 
   Future<void> refresh();
 
+  Future<List<HealthTask>> tasksForDate(DateTime date);
+
+  Future<List<HealthTask>> taskHistory(DateTime from, DateTime to);
+
   Future<HealthPlan> createPlan(PlanDraft draft);
 
   Future<void> setTaskCompleted(

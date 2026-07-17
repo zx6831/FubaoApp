@@ -81,6 +81,26 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
   }
 
   @override
+  Future<List<HealthTask>> tasksForDate(DateTime date) async {
+    final data = await _api.get('tasks?date=${_date(date)}');
+    return (data['items'] as List? ?? const [])
+        .whereType<Map>()
+        .map((item) => _taskFromJson(item.cast<String, dynamic>()))
+        .toList();
+  }
+
+  @override
+  Future<List<HealthTask>> taskHistory(DateTime from, DateTime to) async {
+    final data = await _api.get(
+      'tasks/history?from=${_date(from)}&to=${_date(to)}',
+    );
+    return (data['items'] as List? ?? const [])
+        .whereType<Map>()
+        .map((item) => _taskFromJson(item.cast<String, dynamic>()))
+        .toList();
+  }
+
+  @override
   Future<HealthPlan> createPlan(PlanDraft draft) async {
     final data = await _api.post('plans', body: {
       'kind': draft.kind.name,

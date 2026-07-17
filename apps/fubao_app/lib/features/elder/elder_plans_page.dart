@@ -5,6 +5,7 @@ import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../domain/models.dart';
 import '../../widgets/fubao_widgets.dart';
+import '../plans/task_history_page.dart';
 
 class ElderPlansPage extends StatelessWidget {
   const ElderPlansPage({required this.repository, super.key});
@@ -37,7 +38,16 @@ class ElderPlansPage extends StatelessWidget {
                       ReadAloudButton(text: '我的计划。今天有吃药、散步和记录心情。'),
                     ]),
                 const SizedBox(height: 22),
-                const _ElderWeekStrip(),
+                _ElderWeekStrip(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => TaskHistoryPage(
+                        repository: repository,
+                        elder: true,
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 22),
                 const Text('今天的任务',
                     style:
@@ -97,11 +107,13 @@ FubaoIllustration _illustrationFor(TaskKind kind) => switch (kind) {
     };
 
 class _ElderWeekStrip extends StatelessWidget {
-  const _ElderWeekStrip();
+  const _ElderWeekStrip({required this.onTap});
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
     const labels = ['一', '二', '今', '四', '五', '六', '日'];
     return FubaoCard(
+      onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         for (var i = 0; i < labels.length; i++)

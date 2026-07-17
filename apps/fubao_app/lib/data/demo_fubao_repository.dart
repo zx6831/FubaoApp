@@ -90,6 +90,13 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   Future<void> refresh() async {}
 
   @override
+  Future<List<HealthTask>> tasksForDate(DateTime date) async => tasks;
+
+  @override
+  Future<List<HealthTask>> taskHistory(DateTime from, DateTime to) async =>
+      tasks;
+
+  @override
   Future<HealthPlan> createPlan(PlanDraft draft) async {
     final plan = HealthPlan(
       id: 'demo-${DateTime.now().microsecondsSinceEpoch}',

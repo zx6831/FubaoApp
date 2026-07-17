@@ -5,6 +5,7 @@ import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../domain/models.dart';
 import '../../widgets/fubao_widgets.dart';
+import '../plans/task_history_page.dart';
 import 'create_plan_page.dart';
 import 'plan_detail_page.dart';
 
@@ -23,9 +24,9 @@ class ChildPlansPage extends StatelessWidget {
               trailing: SparkBadge(compact: true),
             ),
             const SizedBox(height: 18),
-            const _WeekCard(),
+            _WeekCard(onTap: () => _openHistory(context)),
             const SizedBox(height: 12),
-            const _MonthCard(),
+            _MonthCard(onTap: () => _openHistory(context)),
             const SizedBox(height: 18),
             const Text('正在进行的计划',
                 style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
@@ -62,12 +63,20 @@ class ChildPlansPage extends StatelessWidget {
           ],
         ),
       );
+
+  void _openHistory(BuildContext context) => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => TaskHistoryPage(repository: repository),
+        ),
+      );
 }
 
 class _WeekCard extends StatelessWidget {
-  const _WeekCard();
+  const _WeekCard({required this.onTap});
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => FubaoCard(
+        onTap: onTap,
         borderColor: const Color(0xFFF4E5D8),
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -149,9 +158,11 @@ class _WeekStrip extends StatelessWidget {
 }
 
 class _MonthCard extends StatelessWidget {
-  const _MonthCard();
+  const _MonthCard({required this.onTap});
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => FubaoCard(
+        onTap: onTap,
         padding: const EdgeInsets.all(18),
         child: Row(
           children: [
