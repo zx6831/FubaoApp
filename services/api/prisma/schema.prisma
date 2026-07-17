@@ -1,0 +1,406 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  child
+  elder
+}
+
+enum FamilyStatus {
+  active
+  dissolved
+}
+
+enum MembershipStatus {
+  active
+  exited
+  removed
+}
+
+enum DeviceStatus {
+  discovered
+  provisioning
+  online
+  offline
+  unbound
+}
+
+enum PlanStatus {
+  active
+  paused
+  ended
+}
+
+enum TaskKind {
+  medicine
+  bloodPressure
+  bloodGlucose
+  walk
+  mood
+  weight
+  custom
+}
+
+enum TaskStatus {
+  pending
+  completed
+  skipped
+  abnormal
+}
+
+enum HealthMetricType {
+  bloodPressure
+  bloodGlucose
+  mood
+  weight
+  heartRate
+  sleep
+}
+
+enum AlertLevel {
+  L1
+  L2
+  L3
+}
+
+enum AlertStatus {
+  pending
+  handled
+  closed
+}
+
+enum SparkState {
+  lit
+  unlit
+}
+
+enum MessageType {
+  weeklyReport
+  alert
+  system
+  insight
+}
+
+model User {
+  id                    String            @id @default(uuid()) @db.Uuid
+  phoneHash             String            @unique
+  phoneCiphertext       String
+  nickname              String
+  role                  Role
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  deletedAt             DateTime?
+  sessions              Session[]
+  ownedFamily           Family?           @relation("FamilyOwner")
+  memberships           FamilyMember[]
+  healthProfile         HealthProfile?
+  createdPlans          Plan[]            @relation("PlanCreator")
+  subjectPlans          Plan[]            @relation("PlanSubject")
+  dailyTasks            DailyTask[]
+  taskRecords           TaskRecord[]
+  healthReadings        HealthReading[]
+  alerts                Alert[]
+  messages              Message[]
+  auditLogs             AuditLog[]        @relation("AuditActor")
+  deletionRequest       DeletionRequest?
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
+  refreshTokenHash String    @unique
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Family {
+  id          String           @id @default(uuid()) @db.Uuid
+  ownerId     String           @unique @db.Uuid
+  status      FamilyStatus     @default(active)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  dissolvedAt DateTime?
+  owner       User             @relation("FamilyOwner", fields: [ownerId], references: [id])
+  members     FamilyMember[]
+  invitations Invitation[]
+  devices     Device[]
+  profiles    HealthProfile[]
+  plans       Plan[]
+  dailyTasks  DailyTask[]
+  readings    HealthReading[]
+  alerts      Alert[]
+  spark       SparkStatus?
+  activities  SparkActivity[]
+  topics      Topic[]
+  messages    Message[]
+  auditLogs   AuditLog[]
+}
+
+model FamilyMember {
+  id        String           @id @default(uuid()) @db.Uuid
+  familyId String           @db.Uuid
+  userId   String           @db.Uuid
+  role     Role
+  status   MembershipStatus @default(active)
+  joinedAt DateTime         @default(now())
+  exitedAt DateTime?
+  family   Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, userId])
+  @@index([userId, status])
+}
+
+model Invitation {
+  id         String    @id @default(uuid()) @db.Uuid
+  familyId   String    @db.Uuid
+  codeDigest String    @unique
+  elderName  String?
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, expiresAt])
+}
+
+model HealthProfile {
+  id                         String   @id @default(uuid()) @db.Uuid
+  familyId                   String   @db.Uuid
+  userId                     String   @unique @db.Uuid
+  relativeName               String
+  heightCm                   Int?
+  weightKg                   Decimal? @db.Decimal(5, 2)
+  chronicConditions          String[]
+  medicationHistory          Json?
+  medicalHistory             Json?
+  emergencyContactCiphertext String?
+  consentAt                  DateTime
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+  family                     Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user                       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Device {
+  id           String       @id @default(uuid()) @db.Uuid
+  familyId     String       @unique @db.Uuid
+  serialNumber String       @unique
+  firmware     String
+  status       DeviceStatus @default(discovered)
+  lastOnlineAt DateTime?
+  activatedAt  DateTime?
+  unboundAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  family       Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  settings     DeviceSettings?
+  events       DeviceEvent[]
+}
+
+model DeviceSettings {
+  id          String   @id @default(uuid()) @db.Uuid
+  deviceId    String   @unique @db.Uuid
+  volume      Int      @default(60)
+  speechRate  Int      @default(50)
+  dndEnabled  Boolean  @default(true)
+  dndStart    String   @default("22:00")
+  dndEnd      String   @default("07:00")
+  updatedAt   DateTime @updatedAt
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model DeviceEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  deviceId  String   @db.Uuid
+  type      String
+  payload   Json?
+  createdAt DateTime @default(now())
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, createdAt])
+}
+
+model Plan {
+  id             String     @id @default(uuid()) @db.Uuid
+  familyId       String     @db.Uuid
+  subjectUserId  String     @db.Uuid
+  createdById    String     @db.Uuid
+  kind           TaskKind
+  title          String
+  enrollmentData Json?
+  status         PlanStatus @default(active)
+  startsAt       DateTime
+  pausedAt       DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  family         Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  subject        User       @relation("PlanSubject", fields: [subjectUserId], references: [id])
+  createdBy      User       @relation("PlanCreator", fields: [createdById], references: [id])
+  dailyTasks     DailyTask[]
+
+  @@index([familyId, status])
+}
+
+model DailyTask {
+  id           String       @id @default(uuid()) @db.Uuid
+  familyId     String       @db.Uuid
+  planId       String       @db.Uuid
+  userId       String       @db.Uuid
+  date         DateTime     @db.Date
+  kind         TaskKind
+  title        String
+  subtitle     String?
+  reminderAt   DateTime?
+  status       TaskStatus   @default(pending)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  family       Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+  record       TaskRecord?
+
+  @@unique([planId, date])
+  @@index([familyId, date, status])
+}
+
+model TaskRecord {
+  id             String     @id @default(uuid()) @db.Uuid
+  taskId         String     @unique @db.Uuid
+  userId         String     @db.Uuid
+  idempotencyKey String     @unique
+  status         TaskStatus
+  source         String
+  data           Json?
+  completedAt    DateTime
+  createdAt      DateTime   @default(now())
+  task           DailyTask  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user           User       @relation(fields: [userId], references: [id])
+}
+
+model HealthReading {
+  id              String           @id @default(uuid()) @db.Uuid
+  familyId        String           @db.Uuid
+  userId          String           @db.Uuid
+  metric          HealthMetricType
+  value           Json
+  source          String
+  confirmedByUser Boolean          @default(true)
+  recordedAt      DateTime
+  createdAt       DateTime         @default(now())
+  family          Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id])
+  alerts          Alert[]
+
+  @@index([familyId, metric, recordedAt])
+}
+
+model Alert {
+  id              String             @id @default(uuid()) @db.Uuid
+  familyId        String             @db.Uuid
+  userId          String             @db.Uuid
+  healthReadingId String?            @db.Uuid
+  level           AlertLevel
+  metric          HealthMetricType
+  message         String
+  status          AlertStatus        @default(pending)
+  closeReason     String?
+  dedupeKey       String             @unique
+  handledAt       DateTime?
+  createdAt       DateTime           @default(now())
+  family          Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user            User               @relation(fields: [userId], references: [id])
+  healthReading   HealthReading?     @relation(fields: [healthReadingId], references: [id])
+
+  @@index([familyId, status, createdAt])
+}
+
+model SparkStatus {
+  id          String     @id @default(uuid()) @db.Uuid
+  familyId    String     @unique @db.Uuid
+  state       SparkState @default(unlit)
+  streakDays  Int        @default(0)
+  lastLitDate DateTime?  @db.Date
+  updatedAt   DateTime   @updatedAt
+  family      Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+}
+
+model SparkActivity {
+  id          String   @id @default(uuid()) @db.Uuid
+  familyId    String   @db.Uuid
+  date        DateTime @db.Date
+  childActive Boolean  @default(false)
+  elderActive Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, date])
+}
+
+model Topic {
+  id             String   @id @default(uuid()) @db.Uuid
+  familyId       String   @db.Uuid
+  date           DateTime @db.Date
+  title          String
+  behavior       String
+  analysis       String
+  suggestedWords String
+  copiedAt       DateTime?
+  createdAt      DateTime @default(now())
+  family         Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, date])
+}
+
+model Message {
+  id          String      @id @default(uuid()) @db.Uuid
+  familyId    String      @db.Uuid
+  userId      String      @db.Uuid
+  type        MessageType
+  title       String
+  body        String
+  payload     Json?
+  readAt      DateTime?
+  createdAt   DateTime    @default(now())
+  family      Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  familyId     String?  @db.Uuid
+  actorId      String?  @db.Uuid
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  family       Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  actor        User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, createdAt])
+}
+
+model DeletionRequest {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @db.Uuid
+  requestedAt DateTime @default(now())
+  deleteAfter DateTime
+  completedAt DateTime?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

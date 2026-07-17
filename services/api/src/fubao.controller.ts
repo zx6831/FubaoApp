@@ -1,7 +1,10 @@
 import { Body, Controller, Delete, Get, Headers, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CreatePlanDto } from './dto/create-plan.dto';
+import { HealthReadingDto } from './dto/health-reading.dto';
+import { JoinFamilyDto } from './dto/join-family.dto';
+import { TestLoginDto } from './dto/test-login.dto';
 import { FubaoService } from './fubao.service';
-import { Role } from './fubao.types';
 
 @ApiTags('fubao')
 @Controller()
@@ -15,7 +18,7 @@ export class FubaoController {
   }
 
   @Post('auth/test-login')
-  testLogin(@Body() body: { role?: Role }) {
+  testLogin(@Body() body: TestLoginDto) {
     return this.service.testLogin(body.role === 'elder' ? 'elder' : 'child');
   }
 
@@ -32,7 +35,7 @@ export class FubaoController {
   }
 
   @Post('families/join')
-  joinFamily(@Body() body: { code: string }) {
+  joinFamily(@Body() body: JoinFamilyDto) {
     return this.service.joinFamily(body.code);
   }
 
@@ -42,7 +45,7 @@ export class FubaoController {
   }
 
   @Post('plans')
-  createPlan(@Body() body: { title?: string }) {
+  createPlan(@Body() body: CreatePlanDto) {
     return this.service.createPlan(body.title?.trim() || '自定义计划');
   }
 
@@ -67,7 +70,7 @@ export class FubaoController {
   }
 
   @Post('health-data')
-  healthData(@Body() body: Record<string, unknown>) {
+  healthData(@Body() body: HealthReadingDto) {
     return this.service.addHealthReading(body);
   }
 

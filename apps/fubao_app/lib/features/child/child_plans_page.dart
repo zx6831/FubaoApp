@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../data/demo_fubao_repository.dart';
+import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../domain/models.dart';
@@ -9,7 +9,7 @@ import 'create_plan_page.dart';
 
 class ChildPlansPage extends StatelessWidget {
   const ChildPlansPage({required this.repository, super.key});
-  final DemoFubaoRepository repository;
+  final FubaoRepository repository;
 
   @override
   Widget build(BuildContext context) => SafeArea(

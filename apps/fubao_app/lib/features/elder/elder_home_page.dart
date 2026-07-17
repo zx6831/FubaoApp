@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../data/demo_fubao_repository.dart';
+import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
 
 class ElderHomePage extends StatelessWidget {
   const ElderHomePage({required this.repository, super.key});
-  final DemoFubaoRepository repository;
+  final FubaoRepository repository;
 
   @override
   Widget build(BuildContext context) => SafeArea(

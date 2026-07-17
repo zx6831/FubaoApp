@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../domain/models.dart';
+import 'fubao_repository.dart';
 
-class DemoFubaoRepository extends ChangeNotifier {
+class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   DemoFubaoRepository()
       : _tasks = [
           const HealthTask(
@@ -39,8 +40,10 @@ class DemoFubaoRepository extends ChangeNotifier {
 
   List<HealthTask> _tasks;
 
+  @override
   List<HealthTask> get tasks => List.unmodifiable(_tasks);
 
+  @override
   final plans = const [
     HealthPlan(
       id: 'blood-pressure',
@@ -60,6 +63,7 @@ class DemoFubaoRepository extends ChangeNotifier {
     ),
   ];
 
+  @override
   final topics = const [
     CareTopic(
       id: 'task-done',
@@ -77,10 +81,20 @@ class DemoFubaoRepository extends ChangeNotifier {
     ),
   ];
 
+  @override
   int get completedTaskCount => _tasks.where((task) => task.isCompleted).length;
+  @override
   bool get allTasksCompleted => _tasks.every((task) => task.isCompleted);
 
-  void setTaskCompleted(String id, bool value) {
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  Future<void> setTaskCompleted(
+    String id,
+    bool value, {
+    String? idempotencyKey,
+  }) async {
     _tasks = [
       for (final task in _tasks)
         if (task.id == id) task.copyWith(isCompleted: value) else task,

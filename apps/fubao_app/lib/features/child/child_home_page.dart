@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../data/demo_fubao_repository.dart';
+import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
@@ -8,7 +8,7 @@ import '../../widgets/fubao_widgets.dart';
 class ChildHomePage extends StatelessWidget {
   const ChildHomePage({required this.repository, super.key});
 
-  final DemoFubaoRepository repository;
+  final FubaoRepository repository;
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +149,7 @@ class _SparkHero extends StatelessWidget {
 
 class _TaskProgressCard extends StatelessWidget {
   const _TaskProgressCard({required this.repository});
-  final DemoFubaoRepository repository;
+  final FubaoRepository repository;
 
   @override
   Widget build(BuildContext context) {

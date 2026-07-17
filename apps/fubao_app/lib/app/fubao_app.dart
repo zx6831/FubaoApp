@@ -1,26 +1,43 @@
 import 'package:flutter/material.dart';
 
+import '../data/fubao_repository.dart';
 import '../data/demo_fubao_repository.dart';
 import '../design/fubao_theme.dart';
 import '../domain/models.dart';
 import '../features/auth/role_selection_page.dart';
 import '../features/child/child_shell.dart';
 import '../features/elder/elder_shell.dart';
+import 'app_config.dart';
 
 class FubaoApp extends StatefulWidget {
-  const FubaoApp({super.key});
+  const FubaoApp({
+    this.config,
+    this.repository,
+    super.key,
+  });
+
+  final AppConfig? config;
+  final FubaoRepository? repository;
 
   @override
   State<FubaoApp> createState() => _FubaoAppState();
 }
 
 class _FubaoAppState extends State<FubaoApp> {
-  final _repository = DemoFubaoRepository();
+  late final FubaoRepository _repository;
+  late final bool _ownsRepository;
   AppRole? _role;
 
   @override
+  void initState() {
+    super.initState();
+    _ownsRepository = widget.repository == null;
+    _repository = widget.repository ?? DemoFubaoRepository();
+  }
+
+  @override
   void dispose() {
-    _repository.dispose();
+    if (_ownsRepository) _repository.dispose();
     super.dispose();
   }
 

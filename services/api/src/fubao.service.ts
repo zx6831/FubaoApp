@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomInt, randomUUID } from 'node:crypto';
+import { HealthReadingDto } from './dto/health-reading.dto';
 import { CareAlert, DailyTask, HealthPlan, Role } from './fubao.types';
 
 @Injectable()
@@ -80,7 +81,7 @@ export class FubaoService {
     ];
   }
 
-  addHealthReading(body: Record<string, unknown>) {
+  addHealthReading(body: HealthReadingDto) {
     const reading = { id: randomUUID(), ...body, confirmedByUser: true, createdAt: new Date().toISOString() };
     this.readings.push(reading);
     const systolic = Number(body.systolic ?? 0);

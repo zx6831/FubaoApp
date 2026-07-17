@@ -8,5 +8,7 @@ build/
 dist/
 coverage/
 node_modules/
+services/api/src/generated/prisma/
 .env
 *.log
+*.tsbuildinfo

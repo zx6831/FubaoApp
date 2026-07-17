@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../data/demo_fubao_repository.dart';
+import '../../data/fubao_repository.dart';
 import '../../widgets/fubao_widgets.dart';
 import 'elder_home_page.dart';
 import 'elder_plans_page.dart';
@@ -14,7 +14,7 @@ class ElderShell extends StatefulWidget {
     super.key,
   });
 
-  final DemoFubaoRepository repository;
+  final FubaoRepository repository;
   final VoidCallback onSwitchRole;
 
   @override
