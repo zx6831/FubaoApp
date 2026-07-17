@@ -2,162 +2,165 @@ import 'package:flutter/material.dart';
 
 import '../../data/demo_fubao_repository.dart';
 import '../../design/fubao_colors.dart';
-import '../../domain/models.dart';
+import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
 
 class ElderHomePage extends StatelessWidget {
   const ElderHomePage({required this.repository, super.key});
-
   final DemoFubaoRepository repository;
 
   @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: AnimatedBuilder(
-        animation: repository,
-        builder: (context, _) {
-          final medicine =
-              repository.tasks.singleWhere((task) => task.id == 'medicine');
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(22, 24, 22, 30),
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
+  Widget build(BuildContext context) => SafeArea(
+        bottom: false,
+        child: AnimatedBuilder(
+          animation: repository,
+          builder: (context, _) {
+            final medicine =
+                repository.tasks.firstWhere((task) => task.id == 'medicine');
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
+              children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        Text('早上好，王阿姨',
+                            style: TextStyle(
+                                fontSize: 35,
+                                fontWeight: FontWeight.w900,
+                                height: 1.2)),
+                        SizedBox(height: 14),
+                        SparkBadge(compact: true),
+                      ])),
+                  const ReadAloudButton(text: '早上好，王阿姨。今天要做的事是按时吃药和记录血压。'),
+                ]),
+                const SizedBox(height: 20),
+                FubaoCard(
+                  padding: const EdgeInsets.all(22),
+                  child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('早上好，王阿姨',
-                            style: Theme.of(context).textTheme.headlineLarge),
-                        const EmptySpacer(height: 12),
-                        const SparkBadge(compact: true),
-                      ],
-                    ),
-                  ),
-                  const ReadAloudButton(text: '早上好，王阿姨。今天要做的事是按时吃药、记录血压。'),
-                ],
-              ),
-              const EmptySpacer(height: 28),
-              SectionTitle('今天要做的事', elder: true),
-              const EmptySpacer(height: 14),
-              _MedicineTaskCard(
-                task: medicine,
-                onChanged: (value) =>
-                    repository.setTaskCompleted('medicine', value),
-              ),
-              const EmptySpacer(height: 16),
-              FubaoCard(
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('测试版已记录血压 128/82 mmHg')),
+                        const Text('今天要做的事',
+                            style: TextStyle(
+                                fontSize: 29, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 18),
+                        Row(children: [
+                          const FubaoIllustrationAsset(FubaoIllustration.pill,
+                              width: 120,
+                              height: 120,
+                              fit: BoxFit.cover,
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(60))),
+                          const SizedBox(width: 16),
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                Text(medicine.title,
+                                    style: const TextStyle(
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.w900)),
+                                const SizedBox(height: 8),
+                                Text('◷ ${medicine.timeLabel}',
+                                    style: const TextStyle(
+                                        fontSize: 23,
+                                        fontWeight: FontWeight.w700)),
+                              ])),
+                        ]),
+                        const SizedBox(height: 20),
+                        if (!medicine.isCompleted) ...[
+                          _LargeTaskButton(
+                            label: '我已经吃了',
+                            icon: Icons.check_rounded,
+                            color: FubaoColors.mintStrong,
+                            onTap: () =>
+                                repository.setTaskCompleted('medicine', true),
+                          ),
+                          const SizedBox(height: 12),
+                          _LargeTaskButton(
+                            label: '我还没吃',
+                            icon: Icons.radio_button_unchecked_rounded,
+                            color: FubaoColors.orangeStrong,
+                            onTap: () => ScaffoldMessenger.of(context)
+                                .showSnackBar(
+                                    const SnackBar(content: Text('稍后会再次提醒你'))),
+                          ),
+                        ] else
+                          _LargeTaskButton(
+                            label: '已完成',
+                            icon: Icons.check_circle_rounded,
+                            color: FubaoColors.mintStrong,
+                            onTap: () {},
+                          ),
+                      ]),
                 ),
-                padding: const EdgeInsets.all(22),
-                child: const Row(
-                  children: [
-                    FubaoIconBubble(
-                        icon: Icons.monitor_heart_outlined,
-                        color: FubaoColors.mintStrong,
-                        size: 76),
-                    SizedBox(width: 20),
+                const SizedBox(height: 16),
+                FubaoCard(
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('请坐好休息 5 分钟后记录血压'))),
+                  padding: const EdgeInsets.all(16),
+                  child: const Row(children: [
+                    FubaoIllustrationAsset(
+                        FubaoIllustration.elderBloodPressureDevice,
+                        width: 126,
+                        height: 104,
+                        fit: BoxFit.cover),
+                    SizedBox(width: 14),
                     Expanded(
                         child: Text('记录血压',
                             style: TextStyle(
                                 fontSize: 29, fontWeight: FontWeight.w900))),
-                    Icon(Icons.arrow_forward_rounded,
-                        size: 38, color: FubaoColors.mintStrong),
-                  ],
+                    CircleAvatar(
+                        radius: 28,
+                        backgroundColor: FubaoColors.mintStrong,
+                        child: Icon(Icons.chevron_right_rounded,
+                            color: Colors.white, size: 40)),
+                  ]),
                 ),
-              ),
-              const EmptySpacer(height: 20),
-              const SafetyNote(),
-            ],
-          );
-        },
-      ),
-    );
-  }
+              ],
+            );
+          },
+        ),
+      );
 }
 
-class _MedicineTaskCard extends StatelessWidget {
-  const _MedicineTaskCard({required this.task, required this.onChanged});
-
-  final HealthTask task;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return FubaoCard(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const FubaoIconBubble(
-                  icon: Icons.medication_rounded,
-                  color: FubaoColors.mintStrong,
-                  size: 82),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(task.title,
-                        style: const TextStyle(
-                            fontSize: 32, fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 8),
-                    Text(task.timeLabel,
-                        style: const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.w700)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _ElderChoiceButton(
-            label: task.isCompleted ? '已完成' : '我已经吃了',
-            icon: Icons.check_circle_rounded,
-            color: FubaoColors.mintStrong,
-            onPressed: () => onChanged(true),
-          ),
-          const SizedBox(height: 14),
-          _ElderChoiceButton(
-            label: '我还没吃',
-            icon: Icons.radio_button_unchecked_rounded,
-            color: FubaoColors.orangeStrong,
-            onPressed: () => onChanged(false),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ElderChoiceButton extends StatelessWidget {
-  const _ElderChoiceButton(
+class _LargeTaskButton extends StatelessWidget {
+  const _LargeTaskButton(
       {required this.label,
       required this.icon,
       required this.color,
-      required this.onPressed});
+      required this.onTap});
   final String label;
   final IconData icon;
   final Color color;
-  final VoidCallback onPressed;
-
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) {
-    return FilledButton.icon(
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(78),
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        textStyle: const TextStyle(fontSize: 27, fontWeight: FontWeight.w900),
-      ),
-      onPressed: onPressed,
-      icon: Icon(icon, size: 34),
-      label: Text(label),
-    );
-  }
+  Widget build(BuildContext context) => Material(
+        color: color,
+        elevation: 4,
+        shadowColor: color.withValues(alpha: .3),
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: SizedBox(
+            height: 88,
+            child: Row(children: [
+              const SizedBox(width: 22),
+              CircleAvatar(
+                  radius: 27,
+                  backgroundColor: Colors.white,
+                  child: Icon(icon, color: color, size: 36)),
+              const SizedBox(width: 20),
+              Expanded(
+                  child: Text(label,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 29,
+                          fontWeight: FontWeight.w900))),
+            ]),
+          ),
+        ),
+      );
 }

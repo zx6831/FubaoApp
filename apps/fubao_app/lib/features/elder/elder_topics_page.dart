@@ -2,134 +2,147 @@ import 'package:flutter/material.dart';
 
 import '../../data/demo_fubao_repository.dart';
 import '../../design/fubao_colors.dart';
+import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
 
 class ElderTopicsPage extends StatelessWidget {
   const ElderTopicsPage({required this.repository, super.key});
-
   final DemoFubaoRepository repository;
 
   @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: AnimatedBuilder(
-        animation: repository,
-        builder: (context, _) {
-          final allDone = repository.tasks.every((task) => task.isCompleted);
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(22, 24, 22, 30),
+  Widget build(BuildContext context) => SafeArea(
+        bottom: false,
+        child: AnimatedBuilder(
+          animation: repository,
+          builder: (context, _) => ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
             children: [
               const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                      child: Text('今天聊什么',
-                          style: TextStyle(
-                              fontSize: 39, fontWeight: FontWeight.w900))),
-                  ReadAloudButton(text: '今天聊什么。说说今天开心的事，或者散步时看到的风景。'),
-                ],
-              ),
-              const EmptySpacer(height: 28),
-              if (allDone) ...[
-                const _UnlockedHero(),
-                const EmptySpacer(height: 16),
-                for (final topic in repository.topics) ...[
-                  FubaoCard(
-                    padding: const EdgeInsets.all(22),
-                    child: Row(
-                      children: [
-                        FubaoIconBubble(
-                            icon: topic.icon,
-                            color: FubaoColors.orangeStrong,
-                            size: 82),
-                        const SizedBox(width: 18),
-                        Expanded(
-                            child: Text(
-                                topic.id == 'task-done'
-                                    ? '今天有什么开心的事？'
-                                    : '下午散步时看到什么？',
-                                style: const TextStyle(
-                                    fontSize: 27,
-                                    fontWeight: FontWeight.w900))),
-                        const Icon(Icons.arrow_forward_rounded,
-                            size: 36, color: FubaoColors.mintStrong),
-                      ],
-                    ),
-                  ),
-                  const EmptySpacer(height: 14),
-                ],
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                        child: Text('今天聊什么',
+                            style: TextStyle(
+                                fontSize: 39, fontWeight: FontWeight.w900))),
+                    ReadAloudButton(text: '今天聊什么。看看家人给你的暖心话题。'),
+                  ]),
+              const SizedBox(height: 22),
+              repository.allTasksCompleted
+                  ? const _CompletedHero()
+                  : const _PendingHero(),
+              const SizedBox(height: 18),
+              if (repository.allTasksCompleted) ...[
+                const _ElderTopicCard(
+                    image: FubaoIllustration.elderSun, title: '今天有什么开心的事？'),
+                const SizedBox(height: 14),
+                const _ElderTopicCard(
+                    image: FubaoIllustration.elderPark, title: '下午散步时看到什么？'),
               ] else
-                _LockedTopics(
-                    completed: repository.completedTaskCount,
-                    total: repository.tasks.length),
+                FubaoCard(
+                  padding: const EdgeInsets.all(22),
+                  child: Column(children: [
+                    const Icon(Icons.checklist_rounded,
+                        size: 62, color: FubaoColors.mintStrong),
+                    const SizedBox(height: 12),
+                    const Text('完成任务后，暖心话题会出现在这里',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 23, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 16),
+                    FilledButton(onPressed: () {}, child: const Text('去完成任务')),
+                  ]),
+                ),
             ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _UnlockedHero extends StatelessWidget {
-  const _UnlockedHero();
-  @override
-  Widget build(BuildContext context) => FubaoCard(
-        color: FubaoColors.mintSoft,
-        padding: const EdgeInsets.all(26),
-        child: Row(
-          children: [
-            const FubaoIconBubble(
-                icon: Icons.celebration_rounded,
-                color: FubaoColors.mintStrong,
-                size: 86),
-            const SizedBox(width: 18),
-            Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text('今天的任务都完成啦！',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(color: FubaoColors.mintStrong)),
-                  const SizedBox(height: 8),
-                  const Text('看看家人给你的暖心话题', style: TextStyle(fontSize: 20))
-                ])),
-          ],
+          ),
         ),
       );
 }
 
-class _LockedTopics extends StatelessWidget {
-  const _LockedTopics({required this.completed, required this.total});
-  final int completed;
-  final int total;
+class _PendingHero extends StatelessWidget {
+  const _PendingHero();
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+              colors: [Color(0xFFF0FAF6), Color(0xFFFAFDFB)]),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: FubaoColors.borderMint),
+        ),
+        child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('先完成今天的任务',
+                  style: TextStyle(
+                      color: FubaoColors.mintDeep,
+                      fontSize: 29,
+                      fontWeight: FontWeight.w900)),
+              SizedBox(height: 8),
+              Text('完成后就能看到家人准备的暖心话题',
+                  style: TextStyle(color: FubaoColors.inkMuted, fontSize: 18)),
+            ]),
+      );
+}
 
+class _CompletedHero extends StatelessWidget {
+  const _CompletedHero();
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 210,
+        padding: const EdgeInsets.fromLTRB(22, 24, 8, 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+              colors: [Color(0xFFEAF8F2), Color(0xFFF7FCF9)]),
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Row(children: [
+          const Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                Text('今天的任务都完成啦！',
+                    style: TextStyle(
+                        color: FubaoColors.mintDeep,
+                        fontSize: 29,
+                        height: 1.35,
+                        fontWeight: FontWeight.w900)),
+                SizedBox(height: 12),
+                Text('看看家人给你的暖心话题',
+                    style:
+                        TextStyle(color: FubaoColors.inkMuted, fontSize: 16)),
+              ])),
+          const FubaoIllustrationAsset(FubaoIllustration.elderProfileMascot,
+              width: 160, height: 184, fit: BoxFit.cover),
+        ]),
+      );
+}
+
+class _ElderTopicCard extends StatelessWidget {
+  const _ElderTopicCard({required this.image, required this.title});
+  final FubaoIllustration image;
+  final String title;
   @override
   Widget build(BuildContext context) => FubaoCard(
-        padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 38),
-        child: Column(
-          children: [
-            const FubaoIconBubble(
-                icon: Icons.lock_rounded,
-                color: FubaoColors.orangeStrong,
-                size: 92),
-            const SizedBox(height: 22),
-            const Text('完成今天的任务后查看',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 12),
-            Text('已经完成 $completed / $total 项',
-                style:
-                    const TextStyle(fontSize: 22, color: FubaoColors.inkMuted)),
-            const SizedBox(height: 20),
-            LinearProgressIndicator(
-                value: total == 0 ? 0 : completed / total,
-                minHeight: 12,
-                borderRadius: BorderRadius.circular(999),
-                color: FubaoColors.mintStrong,
-                backgroundColor: FubaoColors.divider),
-          ],
-        ),
+        padding: const EdgeInsets.all(18),
+        child: Row(children: [
+          FubaoIllustrationAsset(image,
+              width: 128,
+              height: 128,
+              fit: BoxFit.cover,
+              borderRadius: BorderRadius.circular(64)),
+          const SizedBox(width: 18),
+          Expanded(
+              child: Text(title,
+                  style: const TextStyle(
+                      fontSize: 29,
+                      height: 1.35,
+                      fontWeight: FontWeight.w900))),
+          const CircleAvatar(
+              radius: 28,
+              backgroundColor: FubaoColors.mintStrong,
+              child: Icon(Icons.chevron_right_rounded,
+                  color: Colors.white, size: 38)),
+        ]),
       );
 }

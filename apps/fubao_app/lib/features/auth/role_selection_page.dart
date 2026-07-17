@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../design/fubao_colors.dart';
+import '../../design/fubao_illustrations.dart';
 import '../../domain/models.dart';
 import '../../widgets/fubao_widgets.dart';
 
@@ -23,7 +24,22 @@ class RoleSelectionPage extends StatelessWidget {
                 children: [
                   const Align(
                       alignment: Alignment.centerLeft, child: BrandMark()),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 22),
+                  Container(
+                    height: 170,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF0FAF6), Color(0xFFFFF7EA)],
+                      ),
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: const FubaoIllustrationAsset(
+                      FubaoIllustration.mascotBanner,
+                      fit: BoxFit.cover,
+                      borderRadius: BorderRadius.all(Radius.circular(28)),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
                   Text('欢迎回家',
                       style: Theme.of(context).textTheme.headlineLarge),
                   const SizedBox(height: 8),

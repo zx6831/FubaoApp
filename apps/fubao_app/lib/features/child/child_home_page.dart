@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/demo_fubao_repository.dart';
 import '../../design/fubao_colors.dart';
+import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
 
 class ChildHomePage extends StatelessWidget {
@@ -12,178 +13,200 @@ class ChildHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
+      bottom: false,
       child: AnimatedBuilder(
         animation: repository,
-        builder: (context, _) {
-          final completed = repository.completedTaskCount;
-          final total = repository.tasks.length;
-          return CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-                sliver: SliverList.list(
-                  children: [
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        BrandMark(),
-                        _AlertButton(),
-                      ],
-                    ),
-                    const EmptySpacer(height: 24),
-                    const _SparkHero(),
-                    const EmptySpacer(height: 16),
-                    _TaskProgress(completed: completed, total: total),
-                    const EmptySpacer(height: 16),
-                    const Row(
-                      children: [
-                        Expanded(child: _HealthMetricCard()),
-                        SizedBox(width: 12),
-                        Expanded(child: _MoodCard()),
-                      ],
-                    ),
-                    const EmptySpacer(height: 28),
-                    const SectionTitle('聊一聊，会更好'),
-                    const EmptySpacer(height: 14),
-                    for (final topic in repository.topics) ...[
-                      FubaoCard(
-                        padding: const EdgeInsets.all(18),
-                        child: Row(
-                          children: [
-                            FubaoIconBubble(
-                              icon: topic.icon,
-                              color: FubaoColors.orangeStrong,
-                              size: 56,
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(topic.title,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium),
-                                  const SizedBox(height: 4),
-                                  Text(topic.suggestedWords,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis),
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.chevron_right_rounded),
-                          ],
-                        ),
-                      ),
-                      const EmptySpacer(height: 12),
-                    ],
-                    const SafetyNote(),
-                  ],
+        builder: (context, _) => ListView(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+          children: [
+            Row(
+              children: [
+                const BrandMark(),
+                const Spacer(),
+                _HeaderAction(
+                  icon: Icons.favorite_border_rounded,
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('家人的关怀都在这里')),
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            ),
+            const SizedBox(height: 14),
+            _SparkHero(days: 12),
+            const SizedBox(height: 14),
+            _TaskProgressCard(repository: repository),
+            const SizedBox(height: 12),
+            const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _BloodPressureCard()),
+                SizedBox(width: 10),
+                Expanded(child: _MoodCard()),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('聊一聊，会更好',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                ),
+                TextButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('换一换'),
+                  style: TextButton.styleFrom(
+                      foregroundColor: FubaoColors.inkMuted),
+                ),
+              ],
+            ),
+            const _ConversationCard(
+              image: FubaoIllustration.coffee,
+              category: '轻松聊聊',
+              text: '今天有没有一件让你\n觉得开心的事？',
+            ),
+            const SizedBox(height: 10),
+            const _ConversationCard(
+              image: FubaoIllustration.sofa,
+              category: '互相支持',
+              text: '遇到小困难也没关系，\n我们一起想想办法吧。',
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _AlertButton extends StatelessWidget {
-  const _AlertButton();
+class _HeaderAction extends StatelessWidget {
+  const _HeaderAction({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    return IconButton.filledTonal(
-      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('目前没有需要处理的提醒')),
-      ),
-      icon:
-          const Badge(smallSize: 8, child: Icon(Icons.favorite_border_rounded)),
-    );
-  }
+  Widget build(BuildContext context) => Material(
+        color: Colors.white,
+        elevation: 3,
+        shadowColor: const Color(0x1A4A3A2E),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: SizedBox(width: 46, height: 46, child: Icon(icon, size: 25)),
+        ),
+      );
 }
 
 class _SparkHero extends StatelessWidget {
-  const _SparkHero();
+  const _SparkHero({required this.days});
+  final int days;
 
   @override
-  Widget build(BuildContext context) {
-    return FubaoCard(
-      color: FubaoColors.mintSoft,
-      borderColor: FubaoColors.mint.withValues(alpha: 0.35),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-      child: Row(
-        children: [
-          Container(
-            width: 92,
-            height: 92,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.white,
-                  FubaoColors.mint.withValues(alpha: 0.22)
+  Widget build(BuildContext context) => Container(
+        height: 182,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFF4FCF8), Color(0xFFFCFDFB)],
+          ),
+          border: Border.all(color: FubaoColors.borderMint),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          children: [
+            const Expanded(
+              flex: 5,
+              child: FubaoIllustrationAsset(FubaoIllustration.spark),
+            ),
+            Expanded(
+              flex: 6,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$days',
+                      style: const TextStyle(
+                          color: FubaoColors.mintStrong,
+                          fontSize: 56,
+                          height: 1,
+                          fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 8),
+                  Text('已连续互动 $days 天',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  const Text('每天一点点，一起更健康',
+                      style:
+                          TextStyle(color: FubaoColors.inkMuted, fontSize: 13)),
                 ],
               ),
             ),
-            child: const Icon(Icons.auto_awesome_rounded,
-                size: 44, color: FubaoColors.mintStrong),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('12',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: FubaoColors.mintStrong, fontSize: 50)),
-                Text('已连续互动 12 天',
-                    style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 6),
-                Text('每天一点点，一起更健康',
-                    style: Theme.of(context).textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
 }
 
-class _TaskProgress extends StatelessWidget {
-  const _TaskProgress({required this.completed, required this.total});
-
-  final int completed;
-  final int total;
+class _TaskProgressCard extends StatelessWidget {
+  const _TaskProgressCard({required this.repository});
+  final DemoFubaoRepository repository;
 
   @override
   Widget build(BuildContext context) {
-    final progress = total == 0 ? 0.0 : completed / total;
+    final done = repository.completedTaskCount;
+    final total = repository.tasks.length;
+    final progress = done / total;
     return FubaoCard(
+      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
-          const FubaoIconBubble(
-              icon: Icons.fact_check_rounded,
-              color: FubaoColors.mintStrong,
-              size: 66),
-          const SizedBox(width: 16),
+          const FubaoIllustrationAsset(FubaoIllustration.clipboard,
+              width: 88, height: 88, fit: BoxFit.cover),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('今日任务进度', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 6),
-                Text('$completed / $total 已完成'),
-                const SizedBox(height: 10),
-                LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(999),
-                  color: FubaoColors.mintStrong,
-                  backgroundColor: FubaoColors.divider,
+                const Text('今日任务进度',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text('$done / $total 已完成',
+                    style: const TextStyle(color: FubaoColors.inkMuted)),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 7,
+                    color: FubaoColors.mintStrong,
+                    backgroundColor: FubaoColors.divider,
+                  ),
                 ),
+                const SizedBox(height: 8),
+                const Text('继续加油，完成所有任务吧！',
+                    style:
+                        TextStyle(color: FubaoColors.inkMuted, fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 58,
+            height: 58,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 6,
+                  color: FubaoColors.mintStrong,
+                  backgroundColor: FubaoColors.mintSoft,
+                ),
+                Text('$done/$total',
+                    style: const TextStyle(
+                        color: FubaoColors.mintStrong,
+                        fontWeight: FontWeight.w800)),
               ],
             ),
           ),
@@ -193,51 +216,140 @@ class _TaskProgress extends StatelessWidget {
   }
 }
 
-class _HealthMetricCard extends StatelessWidget {
-  const _HealthMetricCard();
-
+class _BloodPressureCard extends StatelessWidget {
+  const _BloodPressureCard();
   @override
-  Widget build(BuildContext context) {
-    return const FubaoCard(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('血压', style: TextStyle(fontWeight: FontWeight.w800)),
-            Chip(label: Text('稳定'))
-          ]),
-          SizedBox(height: 14),
-          Text('128/82',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: FubaoColors.mintStrong)),
-          Text('mmHg · 今天 08:30'),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const FubaoCard(
+        padding: EdgeInsets.all(14),
+        child: SizedBox(
+          height: 140,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Expanded(
+                    child: Text('血压',
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w800))),
+                _StatusPill('稳定'),
+              ]),
+              SizedBox(height: 8),
+              Text('128/82',
+                  style: TextStyle(
+                      color: FubaoColors.mintStrong,
+                      fontSize: 25,
+                      fontWeight: FontWeight.w900)),
+              Text('mmHg',
+                  style:
+                      TextStyle(color: FubaoColors.mintStrong, fontSize: 12)),
+              Spacer(),
+              Text(
+                '◷  今天 08:30',
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.fade,
+                style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 class _MoodCard extends StatelessWidget {
   const _MoodCard();
-
   @override
-  Widget build(BuildContext context) {
-    return const FubaoCard(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('今日心情', style: TextStyle(fontWeight: FontWeight.w800)),
-          SizedBox(height: 8),
-          Icon(Icons.sentiment_very_satisfied_rounded,
-              size: 48, color: FubaoColors.orangeStrong),
-          SizedBox(height: 4),
-          Text('愉快 · 谢谢分享'),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const FubaoCard(
+        padding: EdgeInsets.all(14),
+        child: SizedBox(
+          height: 140,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Expanded(
+                    child: Text('今日心情',
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w800))),
+                _StatusPill('愉快', filled: true),
+              ]),
+              Expanded(
+                  child: Center(
+                      child: FubaoIllustrationAsset(FubaoIllustration.mood,
+                          width: 72, height: 72, fit: BoxFit.cover))),
+              Text(
+                '谢谢你分享心情！',
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.fade,
+                style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill(this.text, {this.filled = false});
+  final String text;
+  final bool filled;
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: filled ? FubaoColors.mintStrong : FubaoColors.mintSoft,
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text(text,
+            style: TextStyle(
+                color: filled ? Colors.white : FubaoColors.mintStrong,
+                fontSize: 11,
+                fontWeight: FontWeight.w700)),
+      );
+}
+
+class _ConversationCard extends StatelessWidget {
+  const _ConversationCard(
+      {required this.image, required this.category, required this.text});
+  final FubaoIllustration image;
+  final String category;
+  final String text;
+  @override
+  Widget build(BuildContext context) => FubaoCard(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            FubaoIllustrationAsset(image,
+                width: 72,
+                height: 72,
+                fit: BoxFit.cover,
+                borderRadius: BorderRadius.circular(36)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(category,
+                      style: const TextStyle(
+                          color: FubaoColors.orangeStrong,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text(text,
+                      style: const TextStyle(fontSize: 14, height: 1.35)),
+                ],
+              ),
+            ),
+            OutlinedButton(
+              onPressed: () {},
+              style: OutlinedButton.styleFrom(
+                foregroundColor: FubaoColors.orangeStrong,
+                side: const BorderSide(color: FubaoColors.orangeStrong),
+                minimumSize: const Size(72, 42),
+              ),
+              child: const Text('去聊聊'),
+            ),
+          ],
+        ),
+      );
 }

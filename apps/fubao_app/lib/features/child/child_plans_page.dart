@@ -2,179 +2,244 @@ import 'package:flutter/material.dart';
 
 import '../../data/demo_fubao_repository.dart';
 import '../../design/fubao_colors.dart';
+import '../../design/fubao_illustrations.dart';
+import '../../domain/models.dart';
 import '../../widgets/fubao_widgets.dart';
 import 'create_plan_page.dart';
 
 class ChildPlansPage extends StatelessWidget {
   const ChildPlansPage({required this.repository, super.key});
-
   final DemoFubaoRepository repository;
 
   @override
+  Widget build(BuildContext context) => SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+          children: [
+            Row(
+              children: [
+                const Spacer(),
+                const Text('计划',
+                    style:
+                        TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
+                const Spacer(),
+                const SparkBadge(compact: true),
+              ],
+            ),
+            const SizedBox(height: 18),
+            const _WeekCard(),
+            const SizedBox(height: 12),
+            const _MonthCard(),
+            const SizedBox(height: 18),
+            const Text('正在进行的计划',
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 10),
+            for (var i = 0; i < repository.plans.length; i++) ...[
+              _PlanCard(plan: repository.plans[i], index: i),
+              const SizedBox(height: 10),
+            ],
+            const SizedBox(height: 2),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const CreatePlanPage()),
+              ),
+              icon: const Icon(Icons.add_circle_outline_rounded),
+              label: const Text('添加计划'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                foregroundColor: FubaoColors.mintStrong,
+                side: const BorderSide(color: FubaoColors.mintStrong),
+                textStyle:
+                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22)),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _WeekCard extends StatelessWidget {
+  const _WeekCard();
+  @override
+  Widget build(BuildContext context) => FubaoCard(
+        borderColor: const Color(0xFFF4E5D8),
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('本周完成情况',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 16),
+            const _WeekStrip(),
+            const Divider(height: 28, color: FubaoColors.borderMint),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text.rich(
+                    TextSpan(children: [
+                      TextSpan(text: '本周已完成  ', style: TextStyle(fontSize: 14)),
+                      TextSpan(
+                          text: '9',
+                          style: TextStyle(
+                              color: FubaoColors.mintStrong,
+                              fontSize: 25,
+                              fontWeight: FontWeight.w900)),
+                      TextSpan(
+                          text: '/12 项',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
+                ),
+                const FubaoIllustrationAsset(FubaoIllustration.planClipboard,
+                    width: 135, height: 92, fit: BoxFit.cover),
+              ],
+            ),
+          ],
+        ),
+      );
+}
+
+class _WeekStrip extends StatelessWidget {
+  const _WeekStrip();
+  @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
-        children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    const labels = ['一', '二', '三', '四', '五', '六', '日', '今'];
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        for (var i = 0; i < labels.length; i++)
+          Column(
             children: [
-              SizedBox(width: 80),
-              Text('计划',
-                  style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900)),
-              SparkBadge(compact: true),
+              Text(labels[i],
+                  style: TextStyle(
+                      color:
+                          i == 7 ? FubaoColors.orangeStrong : FubaoColors.ink)),
+              const SizedBox(height: 10),
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: i < 5
+                      ? FubaoColors.mintStrong
+                      : i == 7
+                          ? FubaoColors.orangeStrong
+                          : Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: i >= 5 && i != 7
+                      ? Border.all(color: const Color(0xFFC9C9C9), width: 1.5)
+                      : null,
+                ),
+                child: i < 5 || i == 7
+                    ? const Icon(Icons.check_rounded,
+                        color: Colors.white, size: 18)
+                    : null,
+              ),
             ],
           ),
-          const EmptySpacer(height: 22),
-          const _WeeklyProgress(),
-          const EmptySpacer(height: 14),
-          const _MonthlyProgress(),
-          const EmptySpacer(height: 28),
-          const SectionTitle('正在进行的计划'),
-          const EmptySpacer(height: 14),
-          for (final plan in repository.plans) ...[
-            FubaoCard(
-              child: Row(
+      ],
+    );
+  }
+}
+
+class _MonthCard extends StatelessWidget {
+  const _MonthCard();
+  @override
+  Widget build(BuildContext context) => FubaoCard(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  FubaoIconBubble(
-                      icon: plan.icon, color: FubaoColors.mintStrong, size: 62),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(plan.title,
-                            style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 5),
-                        Text('进行中 · 今日 ${plan.completed}/${plan.total} 已完成'),
-                        const SizedBox(height: 4),
-                        Text(plan.description,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right_rounded, size: 30),
+                  Text('本月进度',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                  SizedBox(height: 12),
+                  Text.rich(TextSpan(children: [
+                    TextSpan(text: '本月已完成  ', style: TextStyle(fontSize: 15)),
+                    TextSpan(
+                        text: '27',
+                        style: TextStyle(
+                            color: FubaoColors.mintStrong,
+                            fontSize: 25,
+                            fontWeight: FontWeight.w900)),
+                    TextSpan(text: '/36 项', style: TextStyle(fontSize: 18)),
+                  ])),
+                  SizedBox(height: 8),
+                  Text('继续保持，轻松达成目标！',
+                      style:
+                          TextStyle(color: FubaoColors.inkMuted, fontSize: 13)),
                 ],
               ),
             ),
-            const EmptySpacer(height: 12),
-          ],
-          const EmptySpacer(height: 8),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(58),
-              side: const BorderSide(color: FubaoColors.mintStrong),
-              foregroundColor: FubaoColors.mintStrong,
-              textStyle:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const CreatePlanPage()),
-            ),
-            icon: const Icon(Icons.add_circle_outline_rounded),
-            label: const Text('添加计划'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WeeklyProgress extends StatelessWidget {
-  const _WeeklyProgress();
-
-  @override
-  Widget build(BuildContext context) {
-    const days = ['一', '二', '三', '四', '五', '六', '日'];
-    return FubaoCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('本周完成情况', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 22),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              for (var index = 0; index < days.length; index++)
-                Column(
-                  children: [
-                    Text(index == 5 ? '今' : days[index],
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 10),
-                    CircleAvatar(
-                      radius: 15,
-                      backgroundColor: index < 5
-                          ? FubaoColors.mintStrong
-                          : index == 5
-                              ? FubaoColors.orangeStrong
-                              : FubaoColors.divider,
-                      child: index <= 5
-                          ? const Icon(Icons.check_rounded,
-                              size: 18, color: Colors.white)
-                          : null,
-                    ),
-                  ],
-                ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          const Text.rich(TextSpan(children: [
-            TextSpan(text: '本周已完成 '),
-            TextSpan(
-                text: '9',
-                style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: FubaoColors.mintStrong)),
-            TextSpan(text: '/12 项')
-          ])),
-        ],
-      ),
-    );
-  }
-}
-
-class _MonthlyProgress extends StatelessWidget {
-  const _MonthlyProgress();
-
-  @override
-  Widget build(BuildContext context) {
-    return FubaoCard(
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('本月进度', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 12),
-                const Text('本月已完成 27/36 项'),
-                const SizedBox(height: 5),
-                const Text('继续保持，轻松达成目标！'),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 92,
-            height: 92,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                const CircularProgressIndicator(
-                    value: 0.75,
-                    strokeWidth: 9,
+            SizedBox(
+              width: 100,
+              height: 100,
+              child: Stack(alignment: Alignment.center, children: [
+                CircularProgressIndicator(
+                    value: .75,
+                    strokeWidth: 10,
                     color: FubaoColors.mintStrong,
                     backgroundColor: FubaoColors.mintSoft),
                 Text('75%',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(color: FubaoColors.mintStrong)),
-              ],
+                    style: TextStyle(
+                        color: FubaoColors.mintStrong,
+                        fontSize: 25,
+                        fontWeight: FontWeight.w900)),
+              ]),
             ),
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
+}
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({required this.plan, required this.index});
+  final HealthPlan plan;
+  final int index;
+  @override
+  Widget build(BuildContext context) => FubaoCard(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            FubaoIllustrationAsset(
+              index == 0
+                  ? FubaoIllustration.bloodPressureDevice
+                  : FubaoIllustration.walkingPerson,
+              width: 78,
+              height: 78,
+              fit: BoxFit.cover,
+              borderRadius: BorderRadius.circular(39),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(plan.title,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 5),
+                  Text('● 进行中 · 今日 ${plan.completed}/${plan.total} 已完成',
+                      style: const TextStyle(
+                          color: FubaoColors.inkMuted, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text(plan.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: FubaoColors.inkMuted, fontSize: 12)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: FubaoColors.inkMuted, size: 28),
+          ],
+        ),
+      );
 }

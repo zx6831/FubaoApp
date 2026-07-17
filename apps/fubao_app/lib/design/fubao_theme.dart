@@ -16,6 +16,7 @@ ThemeData buildFubaoTheme() {
     useMaterial3: true,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: FubaoColors.canvas,
+    fontFamily: 'NotoSansSC',
     fontFamilyFallback: const ['PingFang SC', 'Microsoft YaHei', 'sans-serif'],
     textTheme: const TextTheme(
       headlineLarge: TextStyle(
@@ -59,13 +60,6 @@ ThemeData buildFubaoTheme() {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
     ),
-    navigationBarTheme: const NavigationBarThemeData(
-      height: 76,
-      backgroundColor: FubaoColors.card,
-      indicatorColor: FubaoColors.mintSoft,
-      labelTextStyle: WidgetStatePropertyAll(
-        TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-      ),
-    ),
+    splashFactory: InkSparkle.splashFactory,
   );
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../design/fubao_colors.dart';
+import '../design/fubao_illustrations.dart';
+import '../design/fubao_visual_spec.dart';
 import '../domain/models.dart';
 
 class BrandMark extends StatelessWidget {
@@ -13,28 +15,11 @@ class BrandMark extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: large ? 54 : 42,
-          height: large ? 54 : 42,
-          decoration: const BoxDecoration(
-            color: FubaoColors.mintSoft,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.pets_rounded,
-            color: FubaoColors.mintStrong,
-            size: large ? 30 : 24,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          '福豹',
-          style: TextStyle(
-            fontSize: large ? 34 : 27,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -1,
-            color: FubaoColors.ink,
-          ),
+        Image.asset(
+          FubaoIllustration.brandLogo.assetPath,
+          width: large ? 112 : 90,
+          height: large ? 50 : 40,
+          fit: BoxFit.contain,
         ),
       ],
     );
@@ -69,8 +54,8 @@ class FubaoCard extends StatelessWidget {
 
     return Material(
       color: color,
-      elevation: 2,
-      shadowColor: const Color(0x18252525),
+      elevation: 4,
+      shadowColor: const Color(0x1A4A3A2E),
       shape: shape,
       clipBehavior: Clip.antiAlias,
       child: onTap == null
@@ -80,6 +65,36 @@ class FubaoCard extends StatelessWidget {
               child: content,
             ),
     );
+  }
+}
+
+class FubaoIllustrationAsset extends StatelessWidget {
+  const FubaoIllustrationAsset(
+    this.illustration, {
+    super.key,
+    this.width,
+    this.height,
+    this.fit = BoxFit.contain,
+    this.borderRadius,
+  });
+
+  final FubaoIllustration illustration;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final BorderRadius? borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = Image.asset(
+      illustration.assetPath,
+      width: width,
+      height: height,
+      fit: fit,
+      filterQuality: FilterQuality.high,
+    );
+    if (borderRadius == null) return image;
+    return ClipRRect(borderRadius: borderRadius!, child: image);
   }
 }
 
@@ -214,34 +229,105 @@ class FubaoBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = NavigationBar(
-      selectedIndex: currentIndex,
-      onDestinationSelected: onDestinationSelected,
-      destinations: const [
-        NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: '首页'),
-        NavigationDestination(
-            icon: Icon(Icons.calendar_today_outlined),
-            selectedIcon: Icon(Icons.calendar_month_rounded),
-            label: '计划'),
-        NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline_rounded),
-            selectedIcon: Icon(Icons.chat_bubble_rounded),
-            label: '话题'),
-        NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: '我的'),
-      ],
-    );
+    final spec = elder ? FubaoRoleVisualSpec.elder : FubaoRoleVisualSpec.child;
+    const destinations = [
+      (Icons.home_outlined, Icons.home_rounded, '首页'),
+      (Icons.calendar_today_outlined, Icons.calendar_month_rounded, '计划'),
+      (Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, '话题'),
+      (Icons.person_outline_rounded, Icons.person_rounded, '我的'),
+    ];
 
-    if (!elder) return content;
-    return MediaQuery(
-      data: MediaQuery.of(context)
-          .copyWith(textScaler: const TextScaler.linear(1.16)),
-      child: content,
+    return Material(
+      color: Colors.white,
+      elevation: 12,
+      shadowColor: const Color(0x1A4A3A2E),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: SizedBox(
+        key: const Key('fubao-bottom-navigation'),
+        height: spec.navigationHeight,
+        child: Row(
+          children: [
+            for (var index = 0; index < destinations.length; index++)
+              Expanded(
+                child: _FubaoNavigationItem(
+                  icon: destinations[index].$1,
+                  selectedIcon: destinations[index].$2,
+                  label: destinations[index].$3,
+                  selected: index == currentIndex,
+                  elder: elder,
+                  onTap: () => onDestinationSelected(index),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FubaoNavigationItem extends StatelessWidget {
+  const _FubaoNavigationItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.elder,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final bool elder;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? FubaoColors.mintStrong : FubaoColors.inkMuted;
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Flutter Web can briefly lay out at a sub-pixel viewport while
+            // Chrome applies a responsive-size override. Avoid rendering the
+            // full navigation label until a meaningful tap area exists.
+            if (constraints.maxWidth < 44 || constraints.maxHeight < 44) {
+              return const SizedBox.expand();
+            }
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(selected ? selectedIcon : icon,
+                    color: color, size: elder ? 33 : 27),
+                SizedBox(height: elder ? 3 : 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: elder ? 16 : 13,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: selected ? 18 : 0,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: FubaoColors.mintStrong,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -264,11 +350,23 @@ class ReadAloudButton extends StatelessWidget {
           );
         },
         child: Container(
-          constraints: const BoxConstraints(minWidth: 64, minHeight: 64),
-          padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            color: FubaoColors.mintStrong,
+          constraints: const BoxConstraints(minWidth: 72, minHeight: 72),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [FubaoColors.mint, FubaoColors.mintStrong],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x2445C38F),
+                blurRadius: 12,
+                offset: Offset(0, 5),
+              ),
+            ],
           ),
           child: const Icon(Icons.volume_up_rounded,
               color: Colors.white, size: 32),

@@ -78,6 +78,7 @@ class DemoFubaoRepository extends ChangeNotifier {
   ];
 
   int get completedTaskCount => _tasks.where((task) => task.isCompleted).length;
+  bool get allTasksCompleted => _tasks.every((task) => task.isCompleted);
 
   void setTaskCompleted(String id, bool value) {
     _tasks = [
