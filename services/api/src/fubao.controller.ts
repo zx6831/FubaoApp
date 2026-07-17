@@ -1,7 +1,6 @@
-import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
+import { Controller, Delete, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from './auth/public.decorator';
-import { HealthReadingDto } from './dto/health-reading.dto';
 import { FubaoService } from './fubao.service';
 
 @ApiTags('fubao')
@@ -16,24 +15,9 @@ export class FubaoController {
     return { status: 'ok', service: 'fubao-api' };
   }
 
-  @Get('sparks/current')
-  spark() {
-    return this.service.currentSpark();
-  }
-
   @Get('topics/today')
   topics() {
     return this.service.todayTopics();
-  }
-
-  @Post('health-data')
-  healthData(@Body() body: HealthReadingDto) {
-    return this.service.addHealthReading(body);
-  }
-
-  @Get('alerts')
-  alerts() {
-    return this.service.exportData().alerts;
   }
 
   @Get('privacy/export')

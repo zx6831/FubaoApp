@@ -62,11 +62,11 @@ describe('Fubao API', () => {
   });
 
   it('creates a care reminder without diagnosis wording', async () => {
-    await request(app.getHttpServer()).post('/api/health-data').set('Authorization', `Bearer ${childToken}`).send({ type: 'bloodPressure', systolic: 168, diastolic: 102 }).expect(201);
+    await request(app.getHttpServer()).post('/api/health-data').set('Authorization', `Bearer ${childToken}`).send({ type: 'bloodPressure', systolic: 168, diastolic: 102, confirmedByUser: true }).expect(201);
     const alerts = await request(app.getHttpServer()).get('/api/alerts').set('Authorization', `Bearer ${childToken}`).expect(200);
-    expect(alerts.body.data[0].level).toBe('L2');
-    expect(alerts.body.data[0].message).toContain('联系医生');
-    expect(alerts.body.data[0].message).not.toContain('诊断为');
+    expect(alerts.body.data.items[0].level).toBe('L2');
+    expect(alerts.body.data.items[0].message).toContain('联系医生');
+    expect(alerts.body.data.items[0].message).not.toContain('诊断为');
   });
 
   it('exports scoped demo data and schedules 30-day deletion', async () => {

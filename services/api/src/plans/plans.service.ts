@@ -17,6 +17,7 @@ import {
 import { FamilyService } from '../families/family.service';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../infrastructure/prisma.service';
+import { HealthService } from '../health/health.service';
 import { CreatePlanV1Dto } from './dto/create-plan-v1.dto';
 
 const shanghaiTimezone = 'Asia/Shanghai' as const;
@@ -27,6 +28,7 @@ export class PlansService {
     private readonly prisma: PrismaService,
     private readonly memory: MemoryIdentityState,
     private readonly families: FamilyService,
+    private readonly health: HealthService,
   ) {}
 
   async create(user: AuthenticatedUser, body: CreatePlanV1Dto) {
@@ -186,9 +188,13 @@ export class PlansService {
       const existingByKey = await this.prisma.taskRecord.findUnique({ where: { idempotencyKey: key }, include: { task: true } });
       if (existingByKey) {
         if (existingByKey.taskId !== taskId) throw new ConflictException('幂等键已用于其他任务');
+        await this.health.markActivity(family.id, 'elder');
         return this.serializeTask({ ...existingByKey.task, record: existingByKey });
       }
-      if (task.record) return this.serializeTask(task);
+      if (task.record) {
+        await this.health.markActivity(family.id, 'elder');
+        return this.serializeTask(task);
+      }
       const completedAt = new Date();
       const result = await this.prisma.$transaction(async (tx) => {
         const record = await tx.taskRecord.create({
@@ -205,6 +211,7 @@ export class PlansService {
         const updated = await tx.dailyTask.update({ where: { id: taskId }, data: { status } });
         return { ...updated, record };
       });
+      await this.health.markActivity(family.id, 'elder');
       return this.serializeTask(result);
     }
 
@@ -215,9 +222,13 @@ export class PlansService {
     const existingByKey = this.memory.taskRecordsByIdempotencyKey.get(key);
     if (existingByKey) {
       if (task.record?.id !== existingByKey.id) throw new ConflictException('幂等键已用于其他任务');
+      await this.health.markActivity(family.id, 'elder');
       return this.serializeTask(task);
     }
-    if (task.record) return this.serializeTask(task);
+    if (task.record) {
+      await this.health.markActivity(family.id, 'elder');
+      return this.serializeTask(task);
+    }
     const record = {
       id: randomUUID(),
       idempotencyKey: key,
@@ -230,6 +241,7 @@ export class PlansService {
     task.record = record;
     task.updatedAt = new Date();
     this.memory.taskRecordsByIdempotencyKey.set(key, record);
+    await this.health.markActivity(family.id, 'elder');
     return this.serializeTask(task);
   }
 

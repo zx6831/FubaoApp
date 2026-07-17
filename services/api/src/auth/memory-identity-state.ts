@@ -106,6 +106,42 @@ export interface MemoryDailyTask {
   };
 }
 
+export interface MemoryHealthReadingV1 {
+  id: string;
+  familyId: string;
+  userId: string;
+  metric: 'bloodPressure' | 'bloodGlucose' | 'mood' | 'weight';
+  value: Record<string, unknown>;
+  source: string;
+  confirmedByUser: boolean;
+  recordedAt: Date;
+  createdAt: Date;
+}
+
+export interface MemoryAlertV1 {
+  id: string;
+  familyId: string;
+  userId: string;
+  healthReadingId: string;
+  level: 'L1' | 'L2';
+  metric: 'bloodPressure' | 'bloodGlucose' | 'mood' | 'weight';
+  message: string;
+  status: 'pending' | 'handled' | 'closed';
+  closeReason?: string;
+  dedupeKey: string;
+  handledAt?: Date;
+  createdAt: Date;
+}
+
+export interface MemorySparkActivityV1 {
+  familyId: string;
+  date: string;
+  childActive: boolean;
+  elderActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 @Injectable()
 export class MemoryIdentityState {
   readonly verificationCodes = new Map<string, { code: string; expiresAt: Date }>();
@@ -119,4 +155,7 @@ export class MemoryIdentityState {
   readonly plans = new Map<string, MemoryPlan>();
   readonly dailyTasks = new Map<string, MemoryDailyTask>();
   readonly taskRecordsByIdempotencyKey = new Map<string, MemoryDailyTask['record']>();
+  readonly healthReadingsV1 = new Map<string, MemoryHealthReadingV1>();
+  readonly alertsV1 = new Map<string, MemoryAlertV1>();
+  readonly sparkActivitiesV1 = new Map<string, MemorySparkActivityV1>();
 }
