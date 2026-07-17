@@ -27,6 +27,7 @@ class RoleSelectionPage extends StatelessWidget {
                   const SizedBox(height: 22),
                   Container(
                     height: 170,
+                    padding: const EdgeInsets.symmetric(horizontal: 22),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFFF0FAF6), Color(0xFFFFF7EA)],
@@ -35,8 +36,7 @@ class RoleSelectionPage extends StatelessWidget {
                     ),
                     child: const FubaoIllustrationAsset(
                       FubaoIllustration.mascotBanner,
-                      fit: BoxFit.cover,
-                      borderRadius: BorderRadius.all(Radius.circular(28)),
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(height: 22),

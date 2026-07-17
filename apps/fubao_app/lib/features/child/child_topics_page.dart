@@ -17,15 +17,11 @@ class ChildTopicsPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
           children: [
-            const Row(children: [
-              BrandMark(),
-              Spacer(),
-              Text('话题',
-                  style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
-              Spacer(),
-              Icon(Icons.auto_awesome_rounded,
-                  color: FubaoColors.orangeStrong, size: 28),
-            ]),
+            const CenteredPageHeader(
+              title: '话题',
+              trailing: Icon(Icons.auto_awesome_rounded,
+                  color: FubaoColors.orangeStrong, size: 26),
+            ),
             const SizedBox(height: 22),
             const Row(children: [
               Icon(Icons.favorite_rounded,
@@ -66,12 +62,13 @@ class _TopicCard extends StatelessWidget {
         borderColor: const Color(0xFFFFD9B8),
         padding: const EdgeInsets.all(14),
         child: Row(children: [
-          FubaoIllustrationAsset(
-              index == 0 ? FubaoIllustration.clipboard : FubaoIllustration.park,
-              width: 82,
-              height: 82,
-              fit: BoxFit.cover,
-              borderRadius: BorderRadius.circular(41)),
+          FubaoIllustrationBubble(
+            illustration: index == 0
+                ? FubaoIllustration.clipboard
+                : FubaoIllustration.park,
+            size: 82,
+            backgroundColor: const Color(0xFFFFF4E9),
+          ),
           const SizedBox(width: 12),
           Expanded(
               child: Column(
@@ -126,7 +123,7 @@ class _WeeklyReport extends StatelessWidget {
         child: Column(children: [
           Row(children: [
             const FubaoIllustrationAsset(FubaoIllustration.planClipboard,
-                width: 84, height: 72, fit: BoxFit.cover),
+                width: 84, height: 72),
             const SizedBox(width: 12),
             const Expanded(
                 child: Column(
@@ -228,11 +225,12 @@ class _HistoryRow extends StatelessWidget {
   final String time;
   @override
   Widget build(BuildContext context) => Row(children: [
-        FubaoIllustrationAsset(image,
-            width: 46,
-            height: 46,
-            fit: BoxFit.cover,
-            borderRadius: BorderRadius.circular(23)),
+        FubaoIllustrationBubble(
+          illustration: image,
+          size: 46,
+          backgroundColor: const Color(0xFFFFF4E9),
+          padding: const EdgeInsets.all(3),
+        ),
         const SizedBox(width: 10),
         Expanded(
             child:

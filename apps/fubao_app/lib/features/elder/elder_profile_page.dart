@@ -42,8 +42,7 @@ class ElderProfilePage extends StatelessWidget {
                 child: FubaoIllustrationAsset(
                     FubaoIllustration.elderProfileMascot,
                     width: 250,
-                    height: 205,
-                    fit: BoxFit.cover)),
+                    height: 205)),
             const SizedBox(height: 4),
             const _ElderMenuItem(
                 icon: Icons.folder_special_rounded,

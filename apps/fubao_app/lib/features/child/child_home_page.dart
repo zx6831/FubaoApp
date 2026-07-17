@@ -160,8 +160,10 @@ class _TaskProgressCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       child: Row(
         children: [
-          const FubaoIllustrationAsset(FubaoIllustration.clipboard,
-              width: 88, height: 88, fit: BoxFit.cover),
+          const FubaoIllustrationBubble(
+            illustration: FubaoIllustration.clipboard,
+            size: 88,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -243,12 +245,23 @@ class _BloodPressureCard extends StatelessWidget {
                   style:
                       TextStyle(color: FubaoColors.mintStrong, fontSize: 12)),
               Spacer(),
-              Text(
-                '◷  今天 08:30',
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.fade,
-                style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.access_time_rounded,
+                    size: 13,
+                    color: FubaoColors.inkMuted,
+                  ),
+                  SizedBox(width: 5),
+                  Text(
+                    '今天 08:30',
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.fade,
+                    style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12),
+                  ),
+                ],
               ),
             ],
           ),
@@ -276,7 +289,7 @@ class _MoodCard extends StatelessWidget {
               Expanded(
                   child: Center(
                       child: FubaoIllustrationAsset(FubaoIllustration.mood,
-                          width: 72, height: 72, fit: BoxFit.cover))),
+                          width: 72, height: 72))),
               Text(
                 '谢谢你分享心情！',
                 maxLines: 1,
@@ -320,11 +333,12 @@ class _ConversationCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            FubaoIllustrationAsset(image,
-                width: 72,
-                height: 72,
-                fit: BoxFit.cover,
-                borderRadius: BorderRadius.circular(36)),
+            FubaoIllustrationBubble(
+              illustration: image,
+              size: 72,
+              backgroundColor: const Color(0xFFFFF2E7),
+              padding: const EdgeInsets.all(5),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

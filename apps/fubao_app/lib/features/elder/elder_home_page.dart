@@ -46,12 +46,10 @@ class ElderHomePage extends StatelessWidget {
                                 fontSize: 29, fontWeight: FontWeight.w900)),
                         const SizedBox(height: 18),
                         Row(children: [
-                          const FubaoIllustrationAsset(FubaoIllustration.pill,
-                              width: 120,
-                              height: 120,
-                              fit: BoxFit.cover,
-                              borderRadius:
-                                  BorderRadius.all(Radius.circular(60))),
+                          const FubaoIllustrationBubble(
+                            illustration: FubaoIllustration.pill,
+                            size: 120,
+                          ),
                           const SizedBox(width: 16),
                           Expanded(
                               child: Column(
@@ -62,10 +60,30 @@ class ElderHomePage extends StatelessWidget {
                                         fontSize: 30,
                                         fontWeight: FontWeight.w900)),
                                 const SizedBox(height: 8),
-                                Text('◷ ${medicine.timeLabel}',
-                                    style: const TextStyle(
-                                        fontSize: 23,
-                                        fontWeight: FontWeight.w700)),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.access_time_rounded,
+                                      size: 25,
+                                      color: FubaoColors.mintStrong,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          medicine.timeLabel,
+                                          maxLines: 1,
+                                          style: const TextStyle(
+                                            fontSize: 23,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ])),
                         ]),
                         const SizedBox(height: 20),
@@ -104,8 +122,7 @@ class ElderHomePage extends StatelessWidget {
                     FubaoIllustrationAsset(
                         FubaoIllustration.elderBloodPressureDevice,
                         width: 126,
-                        height: 104,
-                        fit: BoxFit.cover),
+                        height: 104),
                     SizedBox(width: 14),
                     Expanded(
                         child: Text('记录血压',

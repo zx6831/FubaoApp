@@ -46,7 +46,7 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                 ),
                 child: Row(children: [
                   const FubaoIllustrationAsset(FubaoIllustration.mascotBanner,
-                      width: 130, height: 110, fit: BoxFit.cover),
+                      width: 130, height: 110),
                   const SizedBox(width: 8),
                   Expanded(
                       child: Column(
@@ -98,7 +98,10 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
                     shadowColor: Colors.transparent,
                     minimumSize: const Size.fromHeight(58),
                     textStyle: const TextStyle(
-                        fontSize: 19, fontWeight: FontWeight.w900),
+                      fontFamily: 'NotoSansSC',
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   child: Text(step == 0 ? '下一步' : '开始执行'),
                 ),
@@ -172,8 +175,11 @@ class _OptionCard extends StatelessWidget {
         child: SizedBox(
             height: 78,
             child: Row(children: [
-              FubaoIllustrationAsset(option.$3,
-                  width: 92, height: 78, fit: BoxFit.cover),
+              FubaoIllustrationBubble(
+                illustration: option.$3,
+                size: 82,
+                circular: false,
+              ),
               const SizedBox(width: 12),
               Expanded(
                   child: Column(

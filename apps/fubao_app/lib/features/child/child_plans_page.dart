@@ -17,15 +17,9 @@ class ChildPlansPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
           children: [
-            Row(
-              children: [
-                const Spacer(),
-                const Text('计划',
-                    style:
-                        TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
-                const Spacer(),
-                const SparkBadge(compact: true),
-              ],
+            const CenteredPageHeader(
+              title: '计划',
+              trailing: SparkBadge(compact: true),
             ),
             const SizedBox(height: 18),
             const _WeekCard(),
@@ -50,8 +44,11 @@ class ChildPlansPage extends StatelessWidget {
                 minimumSize: const Size.fromHeight(52),
                 foregroundColor: FubaoColors.mintStrong,
                 side: const BorderSide(color: FubaoColors.mintStrong),
-                textStyle:
-                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                textStyle: const TextStyle(
+                  fontFamily: 'NotoSansSC',
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(22)),
               ),
@@ -95,7 +92,7 @@ class _WeekCard extends StatelessWidget {
                   ),
                 ),
                 const FubaoIllustrationAsset(FubaoIllustration.planClipboard,
-                    width: 135, height: 92, fit: BoxFit.cover),
+                    width: 135, height: 92),
               ],
             ),
           ],
@@ -177,22 +174,7 @@ class _MonthCard extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(
-              width: 100,
-              height: 100,
-              child: Stack(alignment: Alignment.center, children: [
-                CircularProgressIndicator(
-                    value: .75,
-                    strokeWidth: 10,
-                    color: FubaoColors.mintStrong,
-                    backgroundColor: FubaoColors.mintSoft),
-                Text('75%',
-                    style: TextStyle(
-                        color: FubaoColors.mintStrong,
-                        fontSize: 25,
-                        fontWeight: FontWeight.w900)),
-              ]),
-            ),
+            FubaoProgressRing(value: .75, label: '75%'),
           ],
         ),
       );
@@ -207,14 +189,11 @@ class _PlanCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            FubaoIllustrationAsset(
-              index == 0
+            FubaoIllustrationBubble(
+              illustration: index == 0
                   ? FubaoIllustration.bloodPressureDevice
                   : FubaoIllustration.walkingPerson,
-              width: 78,
-              height: 78,
-              fit: BoxFit.cover,
-              borderRadius: BorderRadius.circular(39),
+              size: 78,
             ),
             const SizedBox(width: 12),
             Expanded(

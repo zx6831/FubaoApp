@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fubao_app/data/demo_fubao_repository.dart';
 import 'package:fubao_app/design/fubao_colors.dart';
 import 'package:fubao_app/design/fubao_theme.dart';
+import 'package:fubao_app/features/auth/role_selection_page.dart';
 import 'package:fubao_app/features/child/child_home_page.dart';
 import 'package:fubao_app/features/child/child_plans_page.dart';
 import 'package:fubao_app/features/child/child_profile_page.dart';
@@ -59,6 +60,14 @@ void main() {
   }
 
   group('390x844 approved-page visual baselines', () {
+    testWidgets('role selection', (tester) async {
+      await pumpReferencePage(
+        tester,
+        RoleSelectionPage(onSelected: (_) {}),
+      );
+      await expectPage(tester, 'role_selection');
+    });
+
     testWidgets('younger home', (tester) async {
       await pumpReferencePage(
           tester, ChildHomePage(repository: DemoFubaoRepository()));

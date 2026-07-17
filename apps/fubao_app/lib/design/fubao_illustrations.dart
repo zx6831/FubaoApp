@@ -1,5 +1,4 @@
 enum FubaoIllustration {
-  brandLogo('brand-logo.png'),
   spark('spark.png'),
   clipboard('clipboard.png'),
   mood('mood.png'),
@@ -19,7 +18,6 @@ enum FubaoIllustration {
   elderBloodPressureDevice('elder-bp-device.png'),
   elderPark('elder-park.png'),
   elderMood('elder-mood.png'),
-  elderTopicHero('elder-topic-hero.png'),
   elderSun('elder-sun.png'),
   elderProfileMascot('elder-profile-mascot.png');
 

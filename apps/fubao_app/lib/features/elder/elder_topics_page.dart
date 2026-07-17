@@ -113,7 +113,7 @@ class _CompletedHero extends StatelessWidget {
                         TextStyle(color: FubaoColors.inkMuted, fontSize: 16)),
               ])),
           const FubaoIllustrationAsset(FubaoIllustration.elderProfileMascot,
-              width: 160, height: 184, fit: BoxFit.cover),
+              width: 160, height: 184),
         ]),
       );
 }
@@ -126,11 +126,10 @@ class _ElderTopicCard extends StatelessWidget {
   Widget build(BuildContext context) => FubaoCard(
         padding: const EdgeInsets.all(18),
         child: Row(children: [
-          FubaoIllustrationAsset(image,
-              width: 128,
-              height: 128,
-              fit: BoxFit.cover,
-              borderRadius: BorderRadius.circular(64)),
+          FubaoIllustrationBubble(
+            illustration: image,
+            size: 128,
+          ),
           const SizedBox(width: 18),
           Expanded(
               child: Text(title,

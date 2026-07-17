@@ -26,13 +26,14 @@ class ChildProfilePage extends StatelessWidget {
               borderColor: const Color(0xFFF2E5D9),
               padding: const EdgeInsets.all(16),
               child: Row(children: [
-                const FubaoIllustrationAsset(FubaoIllustration.mascotAvatar,
-                    width: 108,
-                    height: 108,
-                    fit: BoxFit.cover,
-                    borderRadius: BorderRadius.all(Radius.circular(54))),
+                const FubaoIllustrationBubble(
+                  illustration: FubaoIllustration.mascotAvatar,
+                  size: 108,
+                  backgroundColor: Color(0xFFFFF1DF),
+                  padding: EdgeInsets.all(2),
+                ),
                 const SizedBox(width: 16),
-                const Expanded(
+                Expanded(
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -50,9 +51,21 @@ class ChildProfilePage extends StatelessWidget {
                         TextSpan(text: ' 天')
                       ])),
                       SizedBox(height: 8),
-                      Text('●  设备在线',
-                          style: TextStyle(
-                              color: FubaoColors.inkMuted, fontSize: 12)),
+                      Row(children: [
+                        Container(
+                          key: Key('device-online-dot'),
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            color: FubaoColors.mintStrong,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 7),
+                        Text('设备在线',
+                            style: TextStyle(
+                                color: FubaoColors.inkMuted, fontSize: 12)),
+                      ]),
                     ])),
                 const Icon(Icons.chevron_right_rounded,
                     color: FubaoColors.inkMuted),
@@ -69,7 +82,7 @@ class ChildProfilePage extends StatelessWidget {
               ),
               child: const Row(children: [
                 FubaoIllustrationAsset(FubaoIllustration.spark,
-                    width: 130, height: 100, fit: BoxFit.cover),
+                    width: 130, height: 100),
                 SizedBox(width: 12),
                 Expanded(
                     child: Column(
@@ -123,7 +136,7 @@ class ChildProfilePage extends StatelessWidget {
                     border: Border.all(color: FubaoColors.borderMint)),
                 child: const Row(children: [
                   FubaoIllustrationAsset(FubaoIllustration.plants,
-                      width: 86, height: 62, fit: BoxFit.cover),
+                      width: 86, height: 62),
                   SizedBox(width: 14),
                   Expanded(
                       child: Column(

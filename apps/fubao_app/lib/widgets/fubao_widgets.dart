@@ -12,18 +12,99 @@ class BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = large ? 42.0 : 34.0;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          FubaoIllustration.brandLogo.assetPath,
-          width: large ? 112 : 90,
-          height: large ? 50 : 40,
-          fit: BoxFit.contain,
+        CustomPaint(
+          size: Size.square(iconSize),
+          painter: const _FubaoCatMarkPainter(),
+        ),
+        SizedBox(width: large ? 8 : 6),
+        Text(
+          '福豹',
+          style: TextStyle(
+            color: FubaoColors.ink,
+            fontSize: large ? 29 : 24,
+            height: 1,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -1,
+          ),
         ),
       ],
     );
   }
+}
+
+class _FubaoCatMarkPainter extends CustomPainter {
+  const _FubaoCatMarkPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale = size.width / 34;
+    final mintPaint = Paint()..color = FubaoColors.mint;
+    final mintStrongPaint = Paint()..color = FubaoColors.mintStrong;
+    final creamPaint = Paint()..color = const Color(0xFFF9FFF9);
+    final inkPaint = Paint()
+      ..color = const Color(0xFF31584A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.65 * scale
+      ..strokeCap = StrokeCap.round;
+
+    final leftEar = Path()
+      ..moveTo(5 * scale, 12 * scale)
+      ..lineTo(5.8 * scale, 4.3 * scale)
+      ..quadraticBezierTo(6.1 * scale, 2.7 * scale, 7.8 * scale, 4 * scale)
+      ..lineTo(12.4 * scale, 7.1 * scale)
+      ..close();
+    final rightEar = Path()
+      ..moveTo(21.6 * scale, 7.1 * scale)
+      ..lineTo(26.2 * scale, 4 * scale)
+      ..quadraticBezierTo(27.9 * scale, 2.7 * scale, 28.2 * scale, 4.3 * scale)
+      ..lineTo(29 * scale, 12 * scale)
+      ..close();
+    canvas.drawPath(leftEar, mintPaint);
+    canvas.drawPath(rightEar, mintPaint);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(3.5 * scale, 6 * scale, 27 * scale, 25 * scale),
+        Radius.circular(11 * scale),
+      ),
+      mintPaint,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(17 * scale, 20.5 * scale),
+        width: 22 * scale,
+        height: 15.5 * scale,
+      ),
+      creamPaint,
+    );
+    canvas.drawCircle(
+        Offset(12 * scale, 16.2 * scale), 1.2 * scale, mintStrongPaint);
+    canvas.drawCircle(
+        Offset(22 * scale, 16.2 * scale), 1.2 * scale, mintStrongPaint);
+    canvas.drawCircle(
+        Offset(17 * scale, 20.1 * scale), 1.15 * scale, mintStrongPaint);
+    canvas.drawArc(
+      Rect.fromCenter(
+        center: Offset(17 * scale, 21.3 * scale),
+        width: 7.5 * scale,
+        height: 5.5 * scale,
+      ),
+      0.18,
+      2.78,
+      false,
+      inkPaint,
+    );
+    canvas.drawLine(Offset(7.2 * scale, 21 * scale),
+        Offset(12.1 * scale, 21.9 * scale), inkPaint);
+    canvas.drawLine(Offset(21.9 * scale, 21.9 * scale),
+        Offset(26.8 * scale, 21 * scale), inkPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FubaoCatMarkPainter oldDelegate) => false;
 }
 
 class FubaoCard extends StatelessWidget {
@@ -98,6 +179,125 @@ class FubaoIllustrationAsset extends StatelessWidget {
   }
 }
 
+class FubaoIllustrationBubble extends StatelessWidget {
+  const FubaoIllustrationBubble({
+    required this.illustration,
+    required this.size,
+    super.key,
+    this.backgroundColor = FubaoColors.mintSoft,
+    this.padding = const EdgeInsets.all(7),
+    this.circular = true,
+  });
+
+  final FubaoIllustration illustration;
+  final double size;
+  final Color backgroundColor;
+  final EdgeInsetsGeometry padding;
+  final bool circular;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        padding: padding,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          shape: circular ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: circular ? null : BorderRadius.circular(size * .24),
+        ),
+        child: FubaoIllustrationAsset(illustration),
+      );
+}
+
+class CenteredPageHeader extends StatelessWidget {
+  const CenteredPageHeader({
+    required this.title,
+    super.key,
+    this.leading,
+    this.trailing,
+    this.titleStyle,
+  });
+
+  final String title;
+  final Widget? leading;
+  final Widget? trailing;
+  final TextStyle? titleStyle;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 42,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (leading != null)
+              Align(alignment: Alignment.centerLeft, child: leading),
+            Text(
+              title,
+              key: Key('page-title-$title'),
+              maxLines: 1,
+              style: titleStyle ??
+                  const TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
+            ),
+            if (trailing != null)
+              Align(alignment: Alignment.centerRight, child: trailing),
+          ],
+        ),
+      );
+}
+
+class FubaoProgressRing extends StatelessWidget {
+  const FubaoProgressRing({
+    required this.value,
+    required this.label,
+    super.key,
+    this.size = 76,
+    this.strokeWidth = 8,
+  });
+
+  final double value;
+  final String label;
+  final double size;
+  final double strokeWidth;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        key: const Key('fubao-progress-ring'),
+        width: size,
+        height: size,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CircularProgressIndicator(
+              value: value,
+              strokeWidth: strokeWidth,
+              strokeCap: StrokeCap.round,
+              color: FubaoColors.mintStrong,
+              backgroundColor: FubaoColors.mintSoft,
+            ),
+            Center(
+              child: Padding(
+                padding: EdgeInsets.all(strokeWidth + 4),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: const TextStyle(
+                      color: FubaoColors.mintStrong,
+                      fontSize: 21,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
 class FubaoIconBubble extends StatelessWidget {
   const FubaoIconBubble({
     required this.icon,
@@ -158,9 +358,12 @@ class SparkBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      key: compact ? const Key('compact-spark-badge') : null,
+      constraints:
+          compact ? const BoxConstraints(minHeight: 38, maxHeight: 38) : null,
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 12 : 16,
-        vertical: compact ? 8 : 10,
+        horizontal: compact ? 10 : 16,
+        vertical: compact ? 6 : 10,
       ),
       decoration: BoxDecoration(
         color: FubaoColors.mintSoft,
@@ -169,12 +372,14 @@ class SparkBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.auto_awesome_rounded, color: FubaoColors.mintStrong),
-          const SizedBox(width: 7),
+          Icon(Icons.auto_awesome_rounded,
+              color: FubaoColors.mintStrong, size: compact ? 18 : 24),
+          SizedBox(width: compact ? 5 : 7),
           Text(
             compact ? '连续 12 天' : '已连续互动 12 天',
             style: TextStyle(
-              fontSize: compact ? 15 : 17,
+              fontSize: compact ? 14 : 17,
+              height: 1,
               fontWeight: FontWeight.w800,
               color: FubaoColors.mintStrong,
             ),

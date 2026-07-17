@@ -137,11 +137,10 @@ class _ElderTaskCard extends StatelessWidget {
         onTap: onTap,
         padding: const EdgeInsets.all(16),
         child: Row(children: [
-          FubaoIllustrationAsset(illustration,
-              width: 120,
-              height: 120,
-              fit: BoxFit.cover,
-              borderRadius: BorderRadius.circular(60)),
+          FubaoIllustrationBubble(
+            illustration: illustration,
+            size: 120,
+          ),
           const SizedBox(width: 18),
           Expanded(
               child: Column(
@@ -151,11 +150,28 @@ class _ElderTaskCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 27, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 10),
-                Text(completed ? '✓  已完成' : '◷  ${task.timeLabel}',
-                    style: TextStyle(
-                        color: FubaoColors.mintStrong,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800)),
+                Row(
+                  children: [
+                    Icon(
+                      completed
+                          ? Icons.check_circle_rounded
+                          : Icons.access_time_rounded,
+                      size: 24,
+                      color: FubaoColors.mintStrong,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        completed ? '已完成' : task.timeLabel,
+                        style: const TextStyle(
+                          color: FubaoColors.mintStrong,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ])),
           if (!completed)
             const Icon(Icons.chevron_right_rounded,

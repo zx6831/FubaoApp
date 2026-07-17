@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +23,49 @@ void main() {
     for (final illustration in FubaoIllustration.values) {
       final data = await rootBundle.load(illustration.assetPath);
       expect(data.lengthInBytes, greaterThan(100));
+    }
+  });
+
+  test('every raster illustration is high-resolution with transparent corners',
+      () async {
+    for (final illustration in FubaoIllustration.values) {
+      final data = await rootBundle.load(illustration.assetPath);
+      final codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      );
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final rgba = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+
+      expect(
+        image.width,
+        greaterThanOrEqualTo(1024),
+        reason: '${illustration.name} must have a 1024px master width',
+      );
+      expect(
+        image.height,
+        greaterThanOrEqualTo(1024),
+        reason: '${illustration.name} must have a 1024px master height',
+      );
+      expect(rgba, isNotNull);
+
+      final bytes = rgba!.buffer.asUint8List();
+      final cornerAlphaOffsets = [
+        3,
+        (image.width - 1) * 4 + 3,
+        (image.height - 1) * image.width * 4 + 3,
+        (image.width * image.height - 1) * 4 + 3,
+      ];
+      for (final offset in cornerAlphaOffsets) {
+        expect(
+          bytes[offset],
+          0,
+          reason: '${illustration.name} must have transparent corners',
+        );
+      }
+
+      image.dispose();
+      codec.dispose();
     }
   });
 
