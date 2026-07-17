@@ -158,4 +158,8 @@ export class MemoryIdentityState {
   readonly healthReadingsV1 = new Map<string, MemoryHealthReadingV1>();
   readonly alertsV1 = new Map<string, MemoryAlertV1>();
   readonly sparkActivitiesV1 = new Map<string, MemorySparkActivityV1>();
+  readonly engagementTopics = new Map<string, Record<string, any>>();
+  readonly engagementMessages = new Map<string, Record<string, any>>();
+  readonly deletionRequestsV1 = new Map<string, { requestedAt: Date; deleteAfter: Date; completedAt: Date | null }>();
+  readonly feedbackV1: Array<{ userId: string; content: string; createdAt: Date }> = [];
 }

@@ -11,6 +11,7 @@ import { FamilyModule } from './families/family.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { PlansModule } from './plans/plans.module';
 import { HealthModule } from './health/health.module';
+import { EngagementModule } from './engagement/engagement.module';
 import { FubaoController } from './fubao.controller';
 import { FubaoService } from './fubao.service';
 import { validateEnvironment } from './infrastructure/environment';
@@ -33,6 +34,7 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
     OnboardingModule,
     PlansModule,
     HealthModule,
+    EngagementModule,
   ],
   controllers: [FubaoController],
   providers: [

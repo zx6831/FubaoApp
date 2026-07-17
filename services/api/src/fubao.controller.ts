@@ -1,4 +1,4 @@
-import { Controller, Delete, Get } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from './auth/public.decorator';
 import { FubaoService } from './fubao.service';
@@ -15,18 +15,4 @@ export class FubaoController {
     return { status: 'ok', service: 'fubao-api' };
   }
 
-  @Get('topics/today')
-  topics() {
-    return this.service.todayTopics();
-  }
-
-  @Get('privacy/export')
-  exportData() {
-    return this.service.exportData();
-  }
-
-  @Delete('privacy/account')
-  deleteAccount() {
-    return this.service.scheduleDeletion();
-  }
 }
