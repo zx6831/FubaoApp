@@ -10,6 +10,7 @@ import '../domain/models.dart';
 import '../features/auth/role_selection_page.dart';
 import '../features/auth/family_binding_page.dart';
 import '../features/auth/phone_login_page.dart';
+import '../features/auth/onboarding_page.dart';
 import '../features/child/child_shell.dart';
 import '../features/elder/elder_shell.dart';
 import 'app_config.dart';
@@ -108,6 +109,18 @@ class _FubaoAppState extends State<FubaoApp> {
             errorMessage: controller.errorMessage,
             onCreateInvitation: controller.createFamilyAndInvitation,
             onJoin: controller.joinFamily,
+            onRefresh: controller.refreshFamily,
+            onLogout: controller.logout,
+          ),
+        RemoteFlowState.onboarding => OnboardingPage(
+            role: controller.role!,
+            profileComplete: controller.profileComplete,
+            deviceActive: controller.deviceActive,
+            discoveredDeviceSerial: controller.discoveredDeviceSerial,
+            errorMessage: controller.errorMessage,
+            onSaveProfile: controller.saveHealthProfile,
+            onDiscoverDevice: controller.discoverDevice,
+            onActivateDevice: controller.activateDevice,
             onRefresh: controller.refreshFamily,
             onLogout: controller.logout,
           ),

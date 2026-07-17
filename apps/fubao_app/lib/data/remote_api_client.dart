@@ -50,6 +50,15 @@ class RemoteApiClient {
   }) =>
       _request('POST', path, body: body, authenticated: authenticated);
 
+  Future<Map<String, dynamic>> put(String path, {Map<String, dynamic>? body}) =>
+      _request('PUT', path, body: body, authenticated: true);
+
+  Future<Map<String, dynamic>> patch(String path, {Map<String, dynamic>? body}) =>
+      _request('PATCH', path, body: body, authenticated: true);
+
+  Future<Map<String, dynamic>> delete(String path) =>
+      _request('DELETE', path, authenticated: true);
+
   Future<void> saveSession(Map<String, dynamic> json) async {
     _session = AuthSession.fromJson(json);
     await _sessionStore.write(_session!);
@@ -71,9 +80,14 @@ class RemoteApiClient {
     final headers = <String, String>{'Content-Type': 'application/json'};
     if (authenticated) headers['Authorization'] = 'Bearer ${_session!.accessToken}';
     final uri = Uri.parse('$_baseUrl/${path.replaceFirst(RegExp(r'^/+'), '')}');
-    final response = method == 'GET'
-        ? await _http.get(uri, headers: headers)
-        : await _http.post(uri, headers: headers, body: jsonEncode(body ?? const {}));
+    final encodedBody = jsonEncode(body ?? const {});
+    final response = switch (method) {
+      'GET' => await _http.get(uri, headers: headers),
+      'PUT' => await _http.put(uri, headers: headers, body: encodedBody),
+      'PATCH' => await _http.patch(uri, headers: headers, body: encodedBody),
+      'DELETE' => await _http.delete(uri, headers: headers),
+      _ => await _http.post(uri, headers: headers, body: encodedBody),
+    };
 
     if (response.statusCode == 401 && authenticated && mayRefresh && _session != null) {
       final refreshed = await _refreshSession();

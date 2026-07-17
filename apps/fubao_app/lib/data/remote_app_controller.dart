@@ -4,7 +4,7 @@ import '../domain/models.dart';
 import 'auth_session.dart';
 import 'remote_api_client.dart';
 
-enum RemoteFlowState { restoring, signedOut, familySetup, ready }
+enum RemoteFlowState { restoring, signedOut, familySetup, onboarding, ready }
 
 class RemoteAppController extends ChangeNotifier {
   RemoteAppController(this.api);
@@ -15,6 +15,9 @@ class RemoteAppController extends ChangeNotifier {
   String? testCode;
   String? invitationCode;
   DateTime? invitationExpiresAt;
+  bool profileComplete = false;
+  bool deviceActive = false;
+  String? discoveredDeviceSerial;
 
   AuthSession? get session => api.session;
   AppRole? get role => session?.role;
@@ -61,13 +64,52 @@ class RemoteAppController extends ChangeNotifier {
   Future<bool> joinFamily(String code) async {
     return _run(() async {
       await api.post('families/join', body: {'code': code});
-      state = RemoteFlowState.ready;
+      await _resolveFamilyState();
     });
   }
 
   Future<void> refreshFamily() async {
     await _resolveFamilyState();
   }
+
+  Future<bool> saveHealthProfile({
+    required String relativeName,
+    required double? heightCm,
+    required double? weightKg,
+    required List<String> chronicConditions,
+    required String emergencyContact,
+  }) =>
+      _run(() async {
+        await api.put('profiles/elder', body: {
+          'relativeName': relativeName,
+          if (heightCm != null) 'heightCm': heightCm,
+          if (weightKg != null) 'weightKg': weightKg,
+          'chronicConditions': chronicConditions,
+          'medicationHistory': <String, dynamic>{},
+          'medicalHistory': <String, dynamic>{},
+          if (emergencyContact.isNotEmpty) 'emergencyContact': emergencyContact,
+          'consentConfirmed': true,
+        });
+        profileComplete = true;
+        state = RemoteFlowState.onboarding;
+      });
+
+  Future<bool> discoverDevice() => _run(() async {
+        final result = await api.post('devices/discover');
+        final devices = result['devices'] as List;
+        discoveredDeviceSerial = (devices.first as Map)['serialNumber'] as String;
+        state = RemoteFlowState.onboarding;
+      });
+
+  Future<bool> activateDevice(String networkName) => _run(() async {
+        if (discoveredDeviceSerial == null) throw const ApiException(400, '请先发现设备');
+        await api.post('devices/activate', body: {
+          'serialNumber': discoveredDeviceSerial,
+          'networkName': networkName,
+        });
+        deviceActive = true;
+        state = RemoteFlowState.ready;
+      });
 
   Future<void> logout() async {
     final refreshToken = api.session?.refreshToken;
@@ -89,9 +131,16 @@ class RemoteAppController extends ChangeNotifier {
       final family = await api.get('families/current');
       final members = (family['members'] as List?) ?? const [];
       final hasElder = members.whereType<Map>().any((member) => member['role'] == 'elder');
-      state = role == AppRole.child && !hasElder
-          ? RemoteFlowState.familySetup
-          : RemoteFlowState.ready;
+      if (role == AppRole.child && !hasElder) {
+        state = RemoteFlowState.familySetup;
+      } else {
+        final onboarding = await api.get('onboarding/status');
+        profileComplete = onboarding['profileComplete'] == true;
+        deviceActive = onboarding['deviceActive'] == true;
+        state = onboarding['complete'] == true
+            ? RemoteFlowState.ready
+            : RemoteFlowState.onboarding;
+      }
       errorMessage = null;
     } on ApiException catch (error) {
       if (error.statusCode == 404) {

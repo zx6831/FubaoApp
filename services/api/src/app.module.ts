@@ -8,6 +8,7 @@ import { AccessTokenGuard } from './auth/access-token.guard';
 import { AuthModule } from './auth/auth.module';
 import { RolesGuard } from './auth/roles.guard';
 import { FamilyModule } from './families/family.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { FubaoController } from './fubao.controller';
 import { FubaoService } from './fubao.service';
 import { validateEnvironment } from './infrastructure/environment';
@@ -27,6 +28,7 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
     InfrastructureModule,
     AuthModule,
     FamilyModule,
+    OnboardingModule,
   ],
   controllers: [FubaoController],
   providers: [
