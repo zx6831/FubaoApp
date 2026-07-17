@@ -5,6 +5,7 @@ import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
 import '../../domain/models.dart';
+import '../health/health_center_page.dart';
 
 class ElderHomePage extends StatelessWidget {
   const ElderHomePage({required this.repository, super.key});
@@ -145,8 +146,12 @@ class ElderHomePage extends StatelessWidget {
                   ),
                 const SizedBox(height: 16),
                 FubaoCard(
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('请坐好休息 5 分钟后记录血压'))),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          HealthCenterPage(repository: repository, elder: true),
+                    ),
+                  ),
                   padding: const EdgeInsets.all(16),
                   child: const Row(children: [
                     FubaoIllustrationAsset(

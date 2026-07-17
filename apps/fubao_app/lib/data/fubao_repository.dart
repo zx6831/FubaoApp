@@ -8,6 +8,9 @@ abstract interface class FubaoRepository implements Listenable {
   List<CareTopic> get topics;
   int get completedTaskCount;
   bool get allTasksCompleted;
+  List<HealthReading> get healthReadings;
+  List<CareAlert> get alerts;
+  FamilySpark get spark;
 
   Future<void> refresh();
 
@@ -28,6 +31,17 @@ abstract interface class FubaoRepository implements Listenable {
   Future<void> updatePlanStatus(String id, String status);
 
   Future<bool> remindTask(String id);
+
+  Future<void> recordHealth(
+    HealthMetric metric,
+    Map<String, dynamic> value,
+  );
+
+  Future<void> updateAlert(
+    String id,
+    String status, {
+    String? closeReason,
+  });
 
   void dispose();
 }

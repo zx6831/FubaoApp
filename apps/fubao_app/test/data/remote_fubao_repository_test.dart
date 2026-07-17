@@ -85,6 +85,18 @@ void main() {
           completed = true;
           return success({'id': 'task-1', 'status': 'completed'}, 201);
         }
+        if (request.url.path.endsWith('/health-data') ||
+            request.url.path.endsWith('/alerts')) {
+          return success({'items': const []});
+        }
+        if (request.url.path.endsWith('/sparks/current')) {
+          return success({
+            'lit': false,
+            'streakDays': 0,
+            'childActive': false,
+            'elderActive': true,
+          });
+        }
         throw StateError(
             'Unexpected request: ${request.method} ${request.url}');
       }),
@@ -132,6 +144,18 @@ void main() {
         }
         if (request.url.path.endsWith('/tasks/today')) {
           return success({'items': const []});
+        }
+        if (request.url.path.endsWith('/health-data') ||
+            request.url.path.endsWith('/alerts')) {
+          return success({'items': const []});
+        }
+        if (request.url.path.endsWith('/sparks/current')) {
+          return success({
+            'lit': false,
+            'streakDays': 0,
+            'childActive': true,
+            'elderActive': false,
+          });
         }
         throw StateError(
             'Unexpected request: ${request.method} ${request.url}');

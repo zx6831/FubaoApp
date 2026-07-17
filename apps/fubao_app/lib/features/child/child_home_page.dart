@@ -4,6 +4,8 @@ import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
+import '../../domain/models.dart';
+import '../health/health_center_page.dart';
 
 class ChildHomePage extends StatelessWidget {
   const ChildHomePage({required this.repository, super.key});
@@ -32,16 +34,31 @@ class ChildHomePage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            _SparkHero(days: 12),
+            _SparkHero(days: repository.spark.streakDays),
+            if (repository.alerts
+                .any((alert) => alert.status == 'pending')) ...[
+              const SizedBox(height: 12),
+              _AlertBanner(
+                alert: repository.alerts
+                    .firstWhere((alert) => alert.status == 'pending'),
+                onTap: () => _openHealth(context),
+              ),
+            ],
             const SizedBox(height: 14),
             _TaskProgressCard(repository: repository),
             const SizedBox(height: 12),
-            const Row(
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _BloodPressureCard()),
-                SizedBox(width: 10),
-                Expanded(child: _MoodCard()),
+                Expanded(
+                    child: _BloodPressureCard(
+                        reading: _latest(HealthMetric.bloodPressure),
+                        onTap: () => _openHealth(context))),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: _MoodCard(
+                        reading: _latest(HealthMetric.mood),
+                        onTap: () => _openHealth(context))),
               ],
             ),
             const SizedBox(height: 18),
@@ -77,6 +94,39 @@ class ChildHomePage extends StatelessWidget {
       ),
     );
   }
+
+  HealthReading? _latest(HealthMetric metric) {
+    for (final reading in repository.healthReadings) {
+      if (reading.metric == metric) return reading;
+    }
+    return null;
+  }
+
+  void _openHealth(BuildContext context) => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+            builder: (_) => HealthCenterPage(repository: repository)),
+      );
+}
+
+class _AlertBanner extends StatelessWidget {
+  const _AlertBanner({required this.alert, required this.onTap});
+  final CareAlert alert;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => FubaoCard(
+      onTap: onTap,
+      color: const Color(0xFFFFF4EA),
+      borderColor: FubaoColors.orangeStrong,
+      child: Row(children: [
+        const Icon(Icons.notification_important_rounded,
+            color: FubaoColors.orangeStrong),
+        const SizedBox(width: 10),
+        Expanded(
+            child: Text(alert.message,
+                maxLines: 2, overflow: TextOverflow.ellipsis)),
+        const Icon(Icons.chevron_right_rounded,
+            color: FubaoColors.orangeStrong),
+      ]));
 }
 
 class _HeaderAction extends StatelessWidget {
@@ -155,7 +205,7 @@ class _TaskProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final done = repository.completedTaskCount;
     final total = repository.tasks.length;
-    final progress = done / total;
+    final progress = total == 0 ? 0.0 : done / total;
     return FubaoCard(
       padding: const EdgeInsets.all(14),
       child: Row(
@@ -219,33 +269,39 @@ class _TaskProgressCard extends StatelessWidget {
 }
 
 class _BloodPressureCard extends StatelessWidget {
-  const _BloodPressureCard();
+  const _BloodPressureCard({required this.reading, required this.onTap});
+  final HealthReading? reading;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => const FubaoCard(
-        padding: EdgeInsets.all(14),
+  Widget build(BuildContext context) => FubaoCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(14),
         child: SizedBox(
           height: 140,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
+              const Row(children: [
                 Expanded(
                     child: Text('血压',
                         style: TextStyle(
                             fontSize: 17, fontWeight: FontWeight.w800))),
                 _StatusPill('稳定'),
               ]),
-              SizedBox(height: 8),
-              Text('128/82',
-                  style: TextStyle(
+              const SizedBox(height: 8),
+              Text(
+                  reading == null
+                      ? '--/--'
+                      : '${reading!.value['systolic']}/${reading!.value['diastolic']}',
+                  style: const TextStyle(
                       color: FubaoColors.mintStrong,
                       fontSize: 25,
                       fontWeight: FontWeight.w900)),
-              Text('mmHg',
+              const Text('mmHg',
                   style:
                       TextStyle(color: FubaoColors.mintStrong, fontSize: 12)),
-              Spacer(),
-              Row(
+              const Spacer(),
+              const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
@@ -270,27 +326,31 @@ class _BloodPressureCard extends StatelessWidget {
 }
 
 class _MoodCard extends StatelessWidget {
-  const _MoodCard();
+  const _MoodCard({required this.reading, required this.onTap});
+  final HealthReading? reading;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => const FubaoCard(
-        padding: EdgeInsets.all(14),
+  Widget build(BuildContext context) => FubaoCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(14),
         child: SizedBox(
           height: 140,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Expanded(
+                const Expanded(
                     child: Text('今日心情',
                         style: TextStyle(
                             fontSize: 17, fontWeight: FontWeight.w800))),
-                _StatusPill('愉快', filled: true),
+                _StatusPill(reading?.value['text']?.toString() ?? '未记录',
+                    filled: reading != null),
               ]),
-              Expanded(
+              const Expanded(
                   child: Center(
                       child: FubaoIllustrationAsset(FubaoIllustration.mood,
                           width: 72, height: 72))),
-              Text(
+              const Text(
                 '谢谢你分享心情！',
                 maxLines: 1,
                 softWrap: false,

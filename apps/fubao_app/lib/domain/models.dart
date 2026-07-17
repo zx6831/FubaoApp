@@ -106,6 +106,54 @@ class PlanDraft {
   final Map<String, dynamic> enrollmentData;
 }
 
+enum HealthMetric { bloodPressure, bloodGlucose, mood, weight }
+
+@immutable
+class HealthReading {
+  const HealthReading({
+    required this.id,
+    required this.metric,
+    required this.value,
+    required this.recordedAt,
+  });
+  final String id;
+  final HealthMetric metric;
+  final Map<String, dynamic> value;
+  final DateTime recordedAt;
+}
+
+@immutable
+class CareAlert {
+  const CareAlert({
+    required this.id,
+    required this.level,
+    required this.metric,
+    required this.message,
+    required this.status,
+    required this.createdAt,
+  });
+  final String id;
+  final String level;
+  final HealthMetric metric;
+  final String message;
+  final String status;
+  final DateTime createdAt;
+}
+
+@immutable
+class FamilySpark {
+  const FamilySpark({
+    required this.lit,
+    required this.streakDays,
+    required this.childActive,
+    required this.elderActive,
+  });
+  final bool lit;
+  final int streakDays;
+  final bool childActive;
+  final bool elderActive;
+}
+
 @immutable
 class CareTopic {
   const CareTopic({

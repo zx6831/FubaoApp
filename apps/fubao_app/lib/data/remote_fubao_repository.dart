@@ -13,6 +13,14 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
   final List<HealthTask> _tasks = [];
   final List<HealthPlan> _plans = [];
   final List<CareTopic> _topics = const [];
+  final List<HealthReading> _healthReadings = [];
+  final List<CareAlert> _alerts = [];
+  FamilySpark _spark = const FamilySpark(
+    lit: false,
+    streakDays: 0,
+    childActive: false,
+    elderActive: false,
+  );
   Timer? _poller;
   bool _refreshing = false;
   String? lastError;
@@ -25,6 +33,15 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
 
   @override
   List<CareTopic> get topics => List.unmodifiable(_topics);
+
+  @override
+  List<HealthReading> get healthReadings => List.unmodifiable(_healthReadings);
+
+  @override
+  List<CareAlert> get alerts => List.unmodifiable(_alerts);
+
+  @override
+  FamilySpark get spark => _spark;
 
   @override
   int get completedTaskCount => _tasks.where((task) => task.isCompleted).length;
@@ -45,6 +62,14 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     _poller = null;
     _tasks.clear();
     _plans.clear();
+    _healthReadings.clear();
+    _alerts.clear();
+    _spark = const FamilySpark(
+      lit: false,
+      streakDays: 0,
+      childActive: false,
+      elderActive: false,
+    );
     lastError = null;
     notifyListeners();
   }
@@ -56,6 +81,9 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     try {
       final planData = await _api.get('plans');
       final taskData = await _api.get('tasks/today');
+      final healthData = await _api.get('health-data');
+      final alertData = await _api.get('alerts');
+      final sparkData = await _api.get('sparks/current');
       final taskItems = (taskData['items'] as List? ?? const [])
           .whereType<Map>()
           .map((item) => _taskFromJson(item.cast<String, dynamic>()))
@@ -70,6 +98,22 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
       _plans
         ..clear()
         ..addAll(planItems);
+      _healthReadings
+        ..clear()
+        ..addAll((healthData['items'] as List? ?? const [])
+            .whereType<Map>()
+            .map((item) => _healthFromJson(item.cast<String, dynamic>())));
+      _alerts
+        ..clear()
+        ..addAll((alertData['items'] as List? ?? const [])
+            .whereType<Map>()
+            .map((item) => _alertFromJson(item.cast<String, dynamic>())));
+      _spark = FamilySpark(
+        lit: sparkData['lit'] == true,
+        streakDays: (sparkData['streakDays'] as num?)?.toInt() ?? 0,
+        childActive: sparkData['childActive'] == true,
+        elderActive: sparkData['elderActive'] == true,
+      );
       lastError = null;
       notifyListeners();
     } on ApiException catch (error) {
@@ -155,6 +199,38 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     return data['accepted'] == true;
   }
 
+  @override
+  Future<void> recordHealth(
+    HealthMetric metric,
+    Map<String, dynamic> value,
+  ) async {
+    await _api.post('health-data', body: {
+      'type': metric.name,
+      if (metric == HealthMetric.bloodPressure) ...{
+        'systolic': value['systolic'],
+        'diastolic': value['diastolic'],
+      } else if (metric == HealthMetric.mood)
+        'textValue': value['text']
+      else
+        'value': value['value'],
+      'confirmedByUser': true,
+    });
+    await refresh();
+  }
+
+  @override
+  Future<void> updateAlert(
+    String id,
+    String status, {
+    String? closeReason,
+  }) async {
+    await _api.patch('alerts/$id', body: {
+      'status': status,
+      if (closeReason != null) 'closeReason': closeReason,
+    });
+    await refresh();
+  }
+
   HealthTask _taskFromJson(Map<String, dynamic> json) {
     final status = json['status']?.toString();
     final record = (json['record'] as Map?)?.cast<String, dynamic>();
@@ -200,6 +276,27 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
               .toList(),
     );
   }
+
+  HealthReading _healthFromJson(Map<String, dynamic> json) => HealthReading(
+        id: json['id'].toString(),
+        metric: _metric(json['metric']?.toString()),
+        value: (json['value'] as Map?)?.cast<String, dynamic>() ?? const {},
+        recordedAt: DateTime.parse(json['recordedAt'].toString()),
+      );
+
+  CareAlert _alertFromJson(Map<String, dynamic> json) => CareAlert(
+        id: json['id'].toString(),
+        level: json['level']?.toString() ?? 'L1',
+        metric: _metric(json['metric']?.toString()),
+        message: json['message']?.toString() ?? '有一条健康记录需要关注',
+        status: json['status']?.toString() ?? 'pending',
+        createdAt: DateTime.parse(json['createdAt'].toString()),
+      );
+
+  HealthMetric _metric(String? value) => HealthMetric.values.firstWhere(
+        (metric) => metric.name == value,
+        orElse: () => HealthMetric.mood,
+      );
 
   TaskKind _kind(String? value) => TaskKind.values.firstWhere(
         (kind) => kind.name == value,

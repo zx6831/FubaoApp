@@ -87,6 +87,33 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   bool get allTasksCompleted => _tasks.every((task) => task.isCompleted);
 
   @override
+  final List<HealthReading> healthReadings = [
+    HealthReading(
+      id: 'pressure-demo',
+      metric: HealthMetric.bloodPressure,
+      value: const {'systolic': 128, 'diastolic': 82, 'unit': 'mmHg'},
+      recordedAt: DateTime(2026, 7, 18, 8, 30),
+    ),
+    HealthReading(
+      id: 'mood-demo',
+      metric: HealthMetric.mood,
+      value: const {'text': '愉快'},
+      recordedAt: DateTime(2026, 7, 18, 20, 30),
+    ),
+  ];
+
+  @override
+  final List<CareAlert> alerts = [];
+
+  @override
+  FamilySpark get spark => const FamilySpark(
+        lit: true,
+        streakDays: 12,
+        childActive: true,
+        elderActive: true,
+      );
+
+  @override
   Future<void> refresh() async {}
 
   @override
@@ -144,4 +171,27 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
 
   @override
   Future<bool> remindTask(String id) async => true;
+
+  @override
+  Future<void> recordHealth(
+    HealthMetric metric,
+    Map<String, dynamic> value,
+  ) async {
+    healthReadings.insert(
+        0,
+        HealthReading(
+          id: 'demo-health-${DateTime.now().microsecondsSinceEpoch}',
+          metric: metric,
+          value: value,
+          recordedAt: DateTime.now(),
+        ));
+    notifyListeners();
+  }
+
+  @override
+  Future<void> updateAlert(
+    String id,
+    String status, {
+    String? closeReason,
+  }) async {}
 }
