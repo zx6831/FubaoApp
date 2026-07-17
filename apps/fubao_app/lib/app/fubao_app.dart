@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/fubao_repository.dart';
+import '../data/local_data_store.dart';
 import '../data/demo_fubao_repository.dart';
 import '../data/remote_api_client.dart';
 import '../data/remote_app_controller.dart';
@@ -58,8 +59,12 @@ class _FubaoAppState extends State<FubaoApp> {
     _ownsRepository = widget.repository == null;
     _repository = widget.repository ??
         (_config.usesRemoteApi
-            ? RemoteFubaoRepository(_remoteController!.api)
+            ? RemoteFubaoRepository(
+                _remoteController!.api,
+                localStore: PlatformLocalDataStore(),
+              )
             : DemoFubaoRepository());
+    _repository.addListener(_handleRepositoryState);
     if (_config.usesRemoteApi) {
       _remoteController!.initialize();
     }
@@ -75,9 +80,19 @@ class _FubaoAppState extends State<FubaoApp> {
     }
   }
 
+  void _handleRepositoryState() {
+    if (!_config.usesRemoteApi || _remoteController?.api.session != null) {
+      return;
+    }
+    if (_remoteController?.state == RemoteFlowState.ready) {
+      _remoteController!.initialize();
+    }
+  }
+
   @override
   void dispose() {
     _remoteController?.removeListener(_handleRemoteState);
+    _repository.removeListener(_handleRepositoryState);
     if (_ownsRepository) _repository.dispose();
     if (_ownsRemoteController) _remoteController?.dispose();
     super.dispose();

@@ -1,15 +1,22 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../domain/models.dart';
 import 'fubao_repository.dart';
+import 'local_data_store.dart';
 import 'remote_api_client.dart';
 
 class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
-  RemoteFubaoRepository(this._api);
+  RemoteFubaoRepository(
+    this._api, {
+    LocalDataStore? localStore,
+  }) : _localStore = localStore ?? MemoryLocalDataStore();
 
   final RemoteApiClient _api;
+  final LocalDataStore _localStore;
   final List<HealthTask> _tasks = [];
   final List<HealthPlan> _plans = [];
   final List<CareTopic> _topics = [];
@@ -26,6 +33,10 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
   Timer? _poller;
   bool _refreshing = false;
   String? lastError;
+  final List<Map<String, dynamic>> _pendingOperations = [];
+
+  static const _snapshotKey = 'fubao-home-snapshot-v1';
+  static const _queueKey = 'fubao-offline-queue-v1';
 
   @override
   List<HealthTask> get tasks => List.unmodifiable(_tasks);
@@ -52,6 +63,12 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
   WeeklyHealthReport? get weeklyReport => _weeklyReport;
 
   @override
+  String? get syncError => lastError;
+
+  @override
+  int get pendingSyncCount => _pendingOperations.length;
+
+  @override
   int get completedTaskCount => _tasks.where((task) => task.isCompleted).length;
 
   @override
@@ -60,9 +77,14 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
 
   void start() {
     if (_poller != null) return;
-    unawaited(refresh());
+    unawaited(_startWithCache());
     _poller = Timer.periodic(
         const Duration(seconds: 10), (_) => unawaited(refresh()));
+  }
+
+  Future<void> _startWithCache() async {
+    await _restoreOfflineState();
+    await refresh();
   }
 
   void clear() {
@@ -75,6 +97,9 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     _topics.clear();
     _messages.clear();
     _weeklyReport = null;
+    _pendingOperations.clear();
+    unawaited(_localStore.delete(_snapshotKey));
+    unawaited(_localStore.delete(_queueKey));
     _spark = const FamilySpark(
       lit: false,
       streakDays: 0,
@@ -90,6 +115,7 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     if (_refreshing || _api.session == null) return;
     _refreshing = true;
     try {
+      await _flushPendingOperations();
       final planData = await _api.get('plans');
       final taskData = await _api.get('tasks/today');
       final healthData = await _api.get('health-data');
@@ -150,9 +176,13 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
         elderActive: sparkData['elderActive'] == true,
       );
       lastError = null;
+      await _saveSnapshot();
       notifyListeners();
     } on ApiException catch (error) {
       lastError = error.message;
+      notifyListeners();
+    } on http.ClientException {
+      lastError = '网络不可用，正在显示最近一次数据';
       notifyListeners();
     } finally {
       _refreshing = false;
@@ -204,22 +234,36 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     String? idempotencyKey,
   }) async {
     if (!value) return;
-    await _api.post(
-      'tasks/$id/complete',
-      body: const {},
-      headers: {'Idempotency-Key': idempotencyKey ?? _idempotencyKey(id)},
-    );
-    await refresh();
+    final key = idempotencyKey ?? _idempotencyKey(id);
+    try {
+      await _api.post(
+        'tasks/$id/complete',
+        body: const {},
+        headers: {'Idempotency-Key': key},
+      );
+      await refresh();
+    } catch (error) {
+      if (!_canRetryOffline(error)) rethrow;
+      await _queueTaskOperation(id, 'complete', key);
+      _setLocalTaskState(id, completed: true, skipped: false);
+    }
   }
 
   @override
   Future<void> setTaskSkipped(String id, {String? idempotencyKey}) async {
-    await _api.post(
-      'tasks/$id/skip',
-      body: const {},
-      headers: {'Idempotency-Key': idempotencyKey ?? _idempotencyKey(id)},
-    );
-    await refresh();
+    final key = idempotencyKey ?? _idempotencyKey(id);
+    try {
+      await _api.post(
+        'tasks/$id/skip',
+        body: const {},
+        headers: {'Idempotency-Key': key},
+      );
+      await refresh();
+    } catch (error) {
+      if (!_canRetryOffline(error)) rethrow;
+      await _queueTaskOperation(id, 'skip', key);
+      _setLocalTaskState(id, completed: false, skipped: true);
+    }
   }
 
   @override
@@ -413,6 +457,173 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
 
   String _idempotencyKey(String taskId) =>
       'app-$taskId-${DateTime.now().microsecondsSinceEpoch}';
+
+  bool _canRetryOffline(Object error) =>
+      error is http.ClientException ||
+      error is ApiException &&
+          (error.statusCode == 408 || error.statusCode >= 500);
+
+  Future<void> _queueTaskOperation(
+    String taskId,
+    String action,
+    String idempotencyKey,
+  ) async {
+    if (_pendingOperations
+        .any((operation) => operation['idempotencyKey'] == idempotencyKey)) {
+      return;
+    }
+    _pendingOperations.add({
+      'taskId': taskId,
+      'action': action,
+      'idempotencyKey': idempotencyKey,
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    lastError = '网络不可用，操作已保存，将在联网后自动同步';
+    await _saveQueue();
+  }
+
+  void _setLocalTaskState(
+    String id, {
+    required bool completed,
+    required bool skipped,
+  }) {
+    final index = _tasks.indexWhere((task) => task.id == id);
+    if (index != -1) {
+      _tasks[index] = _tasks[index].copyWith(
+        isCompleted: completed,
+        isSkipped: skipped,
+        recordedAt: DateTime.now(),
+      );
+    }
+    unawaited(_saveSnapshot());
+    notifyListeners();
+  }
+
+  Future<void> _flushPendingOperations() async {
+    while (_pendingOperations.isNotEmpty) {
+      final operation = _pendingOperations.first;
+      await _api.post(
+        'tasks/${operation['taskId']}/${operation['action']}',
+        body: const {},
+        headers: {
+          'Idempotency-Key': operation['idempotencyKey'].toString(),
+        },
+      );
+      _pendingOperations.removeAt(0);
+      await _saveQueue();
+    }
+  }
+
+  Future<void> _restoreOfflineState() async {
+    try {
+      final queueRaw = await _localStore.read(_queueKey);
+      if (queueRaw != null) {
+        _pendingOperations
+          ..clear()
+          ..addAll((jsonDecode(queueRaw) as List)
+              .whereType<Map>()
+              .map((item) => item.cast<String, dynamic>()));
+      }
+      final raw = await _localStore.read(_snapshotKey);
+      if (raw == null || _tasks.isNotEmpty) return;
+      final data = (jsonDecode(raw) as Map).cast<String, dynamic>();
+      _tasks.addAll((data['tasks'] as List? ?? const [])
+          .whereType<Map>()
+          .map((item) => _taskFromCache(item.cast<String, dynamic>())));
+      _plans.addAll((data['plans'] as List? ?? const [])
+          .whereType<Map>()
+          .map((item) => _planFromCache(item.cast<String, dynamic>())));
+      final spark = (data['spark'] as Map?)?.cast<String, dynamic>();
+      if (spark != null) {
+        _spark = FamilySpark(
+          lit: spark['lit'] == true,
+          streakDays: (spark['streakDays'] as num?)?.toInt() ?? 0,
+          childActive: spark['childActive'] == true,
+          elderActive: spark['elderActive'] == true,
+        );
+      }
+      lastError = '当前显示最近一次数据，正在尝试同步';
+      notifyListeners();
+    } catch (_) {
+      await _localStore.delete(_snapshotKey);
+      await _localStore.delete(_queueKey);
+    }
+  }
+
+  Future<void> _saveSnapshot() => _localStore.write(
+        _snapshotKey,
+        jsonEncode({
+          'savedAt': DateTime.now().toIso8601String(),
+          'tasks': _tasks.map(_taskToCache).toList(),
+          'plans': _plans.map(_planToCache).toList(),
+          'spark': {
+            'lit': _spark.lit,
+            'streakDays': _spark.streakDays,
+            'childActive': _spark.childActive,
+            'elderActive': _spark.elderActive,
+          },
+        }),
+      );
+
+  Future<void> _saveQueue() =>
+      _localStore.write(_queueKey, jsonEncode(_pendingOperations));
+
+  Map<String, dynamic> _taskToCache(HealthTask task) => {
+        'id': task.id,
+        'planId': task.planId,
+        'title': task.title,
+        'subtitle': task.subtitle,
+        'timeLabel': task.timeLabel,
+        'kind': task.kind.name,
+        'isCompleted': task.isCompleted,
+        'isSkipped': task.isSkipped,
+        'recordedAt': task.recordedAt?.toIso8601String(),
+        'recordData': task.recordData,
+      };
+
+  HealthTask _taskFromCache(Map<String, dynamic> json) => HealthTask(
+        id: json['id'].toString(),
+        planId: json['planId']?.toString(),
+        title: json['title']?.toString() ?? '健康任务',
+        subtitle: json['subtitle']?.toString() ?? '',
+        timeLabel: json['timeLabel']?.toString() ?? '按计划完成',
+        kind: _kind(json['kind']?.toString()),
+        isCompleted: json['isCompleted'] == true,
+        isSkipped: json['isSkipped'] == true,
+        recordedAt: DateTime.tryParse(json['recordedAt']?.toString() ?? ''),
+        recordData: (json['recordData'] as Map?)?.cast<String, dynamic>(),
+      );
+
+  Map<String, dynamic> _planToCache(HealthPlan plan) => {
+        'id': plan.id,
+        'title': plan.title,
+        'description': plan.description,
+        'completed': plan.completed,
+        'total': plan.total,
+        'kind': plan.kind.name,
+        'status': plan.status,
+        'reminderTime': plan.reminderTime,
+        'daysOfWeek': plan.daysOfWeek,
+      };
+
+  HealthPlan _planFromCache(Map<String, dynamic> json) {
+    final kind = _kind(json['kind']?.toString());
+    return HealthPlan(
+      id: json['id'].toString(),
+      title: json['title']?.toString() ?? '健康计划',
+      description: json['description']?.toString() ?? '',
+      completed: (json['completed'] as num?)?.toInt() ?? 0,
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      icon: _icon(kind),
+      kind: kind,
+      status: json['status']?.toString() ?? 'active',
+      reminderTime: json['reminderTime']?.toString() ?? '08:30',
+      daysOfWeek: (json['daysOfWeek'] as List? ?? const [])
+          .whereType<num>()
+          .map((day) => day.toInt())
+          .toList(),
+    );
+  }
 
   @override
   void dispose() {

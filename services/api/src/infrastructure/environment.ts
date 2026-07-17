@@ -9,6 +9,10 @@ export interface AppEnvironment {
   JWT_ACCESS_SECRET: string;
   HASH_PEPPER: string;
   DATA_ENCRYPTION_KEY: string;
+  APNS_MODE: 'fake' | 'apns';
+  APNS_TOPIC?: string;
+  APNS_AUTH_TOKEN?: string;
+  APNS_HOST?: string;
 }
 
 export function validateEnvironment(raw: Record<string, unknown>): AppEnvironment {
@@ -31,6 +35,13 @@ export function validateEnvironment(raw: Record<string, unknown>): AppEnvironmen
   const jwtSecret = stringValue(raw.JWT_ACCESS_SECRET, 'dev-access-secret-change-before-production');
   const hashPepper = stringValue(raw.HASH_PEPPER, 'dev-hash-pepper-change-before-production');
   const encryptionKey = stringValue(raw.DATA_ENCRYPTION_KEY, 'dev-data-key-change-before-production');
+  const apnsMode = stringValue(raw.APNS_MODE, 'fake');
+  if (!['fake', 'apns'].includes(apnsMode)) {
+    throw new Error('APNS_MODE must be fake or apns');
+  }
+  if (apnsMode === 'apns' && (!raw.APNS_TOPIC || !raw.APNS_AUTH_TOKEN)) {
+    throw new Error('APNS_TOPIC and APNS_AUTH_TOKEN are required in apns mode');
+  }
   const productionSecrets = [
     optionalString(raw.JWT_ACCESS_SECRET),
     optionalString(raw.HASH_PEPPER),
@@ -49,6 +60,10 @@ export function validateEnvironment(raw: Record<string, unknown>): AppEnvironmen
     JWT_ACCESS_SECRET: jwtSecret,
     HASH_PEPPER: hashPepper,
     DATA_ENCRYPTION_KEY: encryptionKey,
+    APNS_MODE: apnsMode as AppEnvironment['APNS_MODE'],
+    APNS_TOPIC: optionalString(raw.APNS_TOPIC),
+    APNS_AUTH_TOKEN: optionalString(raw.APNS_AUTH_TOKEN),
+    APNS_HOST: optionalString(raw.APNS_HOST),
   };
 }
 

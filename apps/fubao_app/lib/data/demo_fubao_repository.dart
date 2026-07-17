@@ -141,6 +141,12 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
       );
 
   @override
+  String? get syncError => null;
+
+  @override
+  int get pendingSyncCount => 0;
+
+  @override
   Future<void> refresh() async {}
 
   @override

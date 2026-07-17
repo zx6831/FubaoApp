@@ -13,6 +13,8 @@ abstract interface class FubaoRepository implements Listenable {
   FamilySpark get spark;
   List<AppMessage> get messages;
   WeeklyHealthReport? get weeklyReport;
+  String? get syncError;
+  int get pendingSyncCount;
 
   Future<void> refresh();
 

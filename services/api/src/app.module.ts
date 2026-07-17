@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { ApiResponseInterceptor } from './common/api-response.interceptor';
+import { AuditInterceptor } from './common/audit.interceptor';
 import { AccessTokenGuard } from './auth/access-token.guard';
 import { AuthModule } from './auth/auth.module';
 import { RolesGuard } from './auth/roles.guard';
@@ -16,6 +17,7 @@ import { FubaoController } from './fubao.controller';
 import { FubaoService } from './fubao.service';
 import { validateEnvironment } from './infrastructure/environment';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 
 @Module({
   imports: [
@@ -29,6 +31,7 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
       { name: 'per-minute', ttl: 60_000, limit: 100 },
     ]),
     InfrastructureModule,
+    IntegrationsModule,
     AuthModule,
     FamilyModule,
     OnboardingModule,
@@ -43,6 +46,7 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
     { provide: APP_GUARD, useClass: AccessTokenGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_INTERCEPTOR, useClass: ApiResponseInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     {
       provide: APP_PIPE,

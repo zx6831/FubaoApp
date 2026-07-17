@@ -8,6 +8,8 @@ build/
 dist/
 coverage/
 node_modules/
+.env.production
+backups/
 services/api/src/generated/prisma/
 .env
 *.log
