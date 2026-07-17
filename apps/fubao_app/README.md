@@ -4,7 +4,9 @@
 
 ## 当前可调试能力
 
-- 登录前选择子女端或长辈端。
+- `demo` 环境登录前选择子女端或长辈端。
+- `dev/production` 环境支持手机号验证码、登录恢复、令牌自动轮换和家庭邀请码绑定。
+- iOS 会话通过原生 Keychain 保存；Chrome 调试使用当前浏览器进程内会话，不写入普通配置文件。
 - 子女端：首页、计划、话题、我的；可创建计划、复制话术、切换角色。
 - 长辈端：首页、计划、话题、我的；可完成任务、解锁话题、切换角色。
 - 同一演示仓库维护任务状态，双端切换后可看到相同进度。
@@ -18,6 +20,14 @@ flutter pub get
 flutter test
 flutter run -d chrome
 ```
+
+连接本地 API：
+
+```powershell
+flutter run -d chrome --dart-define=APP_ENV=dev --dart-define=API_BASE_URL=http://127.0.0.1:3000/api
+```
+
+开发环境验证码为 `2468`。生产环境必须传入 HTTPS 地址。
 
 若本机 Visual Studio C++ 工具链配置完整，也可用 `flutter run -d windows` 调试桌面版。
 

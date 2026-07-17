@@ -159,6 +159,7 @@ model FamilyMember {
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([familyId, userId])
+  @@unique([familyId, role])
   @@index([userId, status])
 }
 

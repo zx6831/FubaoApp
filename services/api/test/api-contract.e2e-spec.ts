@@ -26,8 +26,15 @@ describe('API contract', () => {
   });
 
   it('wraps errors and rejects an invalid invitation code', async () => {
+    const phone = '13800000201';
+    await request(app.getHttpServer()).post('/api/auth/request-code').send({ phone }).expect(201);
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/verify-code')
+      .send({ phone, code: '2468', role: 'elder' })
+      .expect(201);
     const response = await request(app.getHttpServer())
       .post('/api/families/join')
+      .set('Authorization', `Bearer ${login.body.data.accessToken}`)
       .send({ code: '12' })
       .expect(400);
 

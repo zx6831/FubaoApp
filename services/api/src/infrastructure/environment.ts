@@ -6,6 +6,9 @@ export interface AppEnvironment {
   PERSISTENCE_DRIVER: PersistenceDriver;
   DATABASE_URL?: string;
   REDIS_URL?: string;
+  JWT_ACCESS_SECRET: string;
+  HASH_PEPPER: string;
+  DATA_ENCRYPTION_KEY: string;
 }
 
 export function validateEnvironment(raw: Record<string, unknown>): AppEnvironment {
@@ -25,12 +28,27 @@ export function validateEnvironment(raw: Record<string, unknown>): AppEnvironmen
     throw new Error('DATABASE_URL is required for postgres persistence');
   }
 
+  const jwtSecret = stringValue(raw.JWT_ACCESS_SECRET, 'dev-access-secret-change-before-production');
+  const hashPepper = stringValue(raw.HASH_PEPPER, 'dev-hash-pepper-change-before-production');
+  const encryptionKey = stringValue(raw.DATA_ENCRYPTION_KEY, 'dev-data-key-change-before-production');
+  const productionSecrets = [
+    optionalString(raw.JWT_ACCESS_SECRET),
+    optionalString(raw.HASH_PEPPER),
+    optionalString(raw.DATA_ENCRYPTION_KEY),
+  ];
+  if (nodeEnv === 'production' && productionSecrets.some((value) => !value || value.length < 32)) {
+    throw new Error('Production security secrets must contain at least 32 characters');
+  }
+
   return {
     NODE_ENV: nodeEnv as AppEnvironment['NODE_ENV'],
     PORT: numberValue(raw.PORT, 3000),
     PERSISTENCE_DRIVER: persistence as PersistenceDriver,
     DATABASE_URL: optionalString(raw.DATABASE_URL),
     REDIS_URL: optionalString(raw.REDIS_URL),
+    JWT_ACCESS_SECRET: jwtSecret,
+    HASH_PEPPER: hashPepper,
+    DATA_ENCRYPTION_KEY: encryptionKey,
   };
 }
 

@@ -25,4 +25,8 @@ export class PrismaService
   async onModuleDestroy(): Promise<void> {
     if (this.enabled) await this.$disconnect();
   }
+
+  isEnabled(): boolean {
+    return this.enabled;
+  }
 }

@@ -13,20 +13,23 @@ flutter test
 flutter run -d chrome
 ```
 
-选择“我是子女”或“我是长辈”即可体验完整的四 Tab 页面和任务联动。
+默认是 `demo` 环境，选择“我是子女”或“我是长辈”即可体验完整的四 Tab 页面和任务联动。
 
 ## 后端调试
 
-后端位于 `services/api`，提供家庭绑定、计划任务、健康关怀提醒和隐私操作接口：
+后端使用 PostgreSQL、Redis 和可重复执行的 Prisma 迁移。推荐在仓库根目录启动：
 
 ```powershell
-cd services\api
-npm.cmd install
-npm.cmd run start:dev
+docker compose up -d --build
 ```
 
-启动后访问 `http://localhost:3000/docs` 查看并调试全部接口。也可以在仓库根目录运行 `docker compose up --build`。
+启动后访问 `http://localhost:3000/docs` 查看接口。用真实登录流程调试 Flutter：
 
-当前客户端使用本地演示数据仓库，便于在没有账号、短信和云数据库时完整演示双端流程；后端可独立联调，下一阶段再接入正式认证、PostgreSQL/Redis 和客户端网络层。
+```powershell
+cd apps\fubao_app
+flutter run -d chrome --dart-define=APP_ENV=dev --dart-define=API_BASE_URL=http://127.0.0.1:3000/api
+```
+
+开发环境验证码固定为 `2468`。访问令牌、刷新令牌、家庭与邀请码均走真实后端；业务主页数据暂继续使用演示仓库，后续阶段逐项替换。
 
 详细说明见 `apps/fubao_app/README.md` 和 `services/api/README.md`。

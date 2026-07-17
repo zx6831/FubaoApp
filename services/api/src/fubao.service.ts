@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { randomInt, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { HealthReadingDto } from './dto/health-reading.dto';
-import { CareAlert, DailyTask, HealthPlan, Role } from './fubao.types';
+import { CareAlert, DailyTask, HealthPlan } from './fubao.types';
 
 @Injectable()
 export class FubaoService {
   private readonly familyId = 'family-demo';
-  private invitation: { code: string; expiresAt: string } | null = null;
   private childActive = true;
   private readonly readings: Array<Record<string, unknown>> = [];
   private readonly alerts: CareAlert[] = [];
@@ -24,31 +23,8 @@ export class FubaoService {
     { id: 'mood', kind: 'mood', title: '记录今天心情', timeLabel: '晚上 8:30', completedAt: new Date().toISOString() },
   ];
 
-  testLogin(role: Role) {
-    if (role === 'child') this.childActive = true;
-    return {
-      accessToken: role === 'child' ? 'child-token' : 'elder-token',
-      role,
-      user: role === 'child' ? { id: 'child-demo', name: '小雨' } : { id: 'elder-demo', name: '王阿姨' },
-    };
-  }
-
   createFamily() {
     return { id: this.familyId, ownerId: 'child-demo', elderId: 'elder-demo' };
-  }
-
-  createInvitation() {
-    const code = randomInt(1000, 10000).toString();
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-    this.invitation = { code, expiresAt };
-    return { code, expiresAt };
-  }
-
-  joinFamily(code: string) {
-    const valid = this.invitation && this.invitation.code === code && Date.parse(this.invitation.expiresAt) > Date.now();
-    if (!valid) return { joined: false, reason: '邀请码无效或已过期' };
-    this.invitation = null;
-    return { joined: true, familyId: this.familyId, role: 'elder' as const };
   }
 
   createPlan(title: string) {

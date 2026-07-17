@@ -35,6 +35,9 @@ services:
       PERSISTENCE_DRIVER: postgres
       DATABASE_URL: postgresql://fubao:fubao_dev_only@postgres:5432/fubao?schema=public
       REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: local-dev-access-secret-change-before-production
+      HASH_PEPPER: local-dev-hash-pepper-change-before-production
+      DATA_ENCRYPTION_KEY: local-dev-data-key-change-before-production
     ports:
       - "3000:3000"
     depends_on:

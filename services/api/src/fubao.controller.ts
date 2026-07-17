@@ -1,9 +1,8 @@
 import { Body, Controller, Delete, Get, Headers, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Public } from './auth/public.decorator';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { HealthReadingDto } from './dto/health-reading.dto';
-import { JoinFamilyDto } from './dto/join-family.dto';
-import { TestLoginDto } from './dto/test-login.dto';
 import { FubaoService } from './fubao.service';
 
 @ApiTags('fubao')
@@ -12,31 +11,10 @@ export class FubaoController {
   constructor(private readonly service: FubaoService) {}
 
   @Get('health')
+  @Public()
   @ApiOperation({ summary: '服务健康检查' })
   health() {
     return { status: 'ok', service: 'fubao-api' };
-  }
-
-  @Post('auth/test-login')
-  testLogin(@Body() body: TestLoginDto) {
-    return this.service.testLogin(body.role === 'elder' ? 'elder' : 'child');
-  }
-
-  @ApiBearerAuth()
-  @Post('families')
-  createFamily() {
-    return this.service.createFamily();
-  }
-
-  @ApiBearerAuth()
-  @Post('families/invitations')
-  createInvitation() {
-    return this.service.createInvitation();
-  }
-
-  @Post('families/join')
-  joinFamily(@Body() body: JoinFamilyDto) {
-    return this.service.joinFamily(body.code);
   }
 
   @Get('plans')

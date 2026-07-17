@@ -1,11 +1,12 @@
 # 福豹调试 API
 
-NestJS 演示后端，用于联调家庭绑定、计划任务、火花、话题、健康关怀提醒和隐私操作。当前状态存储在内存中，重启后重置；生产部署前需替换为 PostgreSQL/Redis 持久化实现。
+NestJS 可部署后端，已接入 PostgreSQL、Prisma、Redis、统一响应格式、参数校验、限流与 OpenAPI。认证和家庭绑定使用持久化数据；尚未完成的业务模块仍保留演示实现。
 
 ## 启动
 
 ```powershell
 npm.cmd install
+npm.cmd run prisma:migrate
 npm.cmd run start:dev
 ```
 
@@ -16,8 +17,9 @@ npm.cmd run start:dev
 ## 测试与构建
 
 ```powershell
-npm.cmd test
-npm.cmd run build
+npm.cmd run verify
 ```
 
-测试登录令牌为 `child-token` 和 `elder-token`，只能用于本地调试，不能进入生产环境。
+开发与测试环境验证码固定为 `2468`。接口支持 15 分钟访问令牌、30 天刷新令牌轮换、退出撤销、角色鉴权，以及 30 分钟有效的一次性 4 位家庭邀请码。
+
+根目录执行 `docker compose up -d --build` 可一次启动 API、PostgreSQL 和 Redis。生产环境必须替换 `.env.example` 中的三个安全密钥。
