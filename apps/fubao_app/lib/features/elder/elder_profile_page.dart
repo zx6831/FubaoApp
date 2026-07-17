@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
 import '../profile/profile_settings_page.dart';
 
 class ElderProfilePage extends StatelessWidget {
-  const ElderProfilePage({required this.onLogout, required this.onLeaveFamily, super.key});
+  const ElderProfilePage({
+    required this.onLogout,
+    required this.onLeaveFamily,
+    this.repository,
+    super.key,
+  });
   final Future<void> Function() onLogout;
   final Future<void> Function() onLeaveFamily;
+  final FubaoRepository? repository;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -92,16 +99,53 @@ class ElderProfilePage extends StatelessWidget {
       );
 
   void _open(BuildContext context, ProfileSettingKind kind) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileSettingsPage(kind: kind, elder: true)));
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileSettingsPage(
+          kind: kind,
+          elder: true,
+          repository: repository,
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
-    final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('退出登录？'), content: const Text('将返回手机号登录页面，但不会退出家庭组。'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('退出登录'))])) ?? false;
+    final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+                    title: const Text('退出登录？'),
+                    content: const Text('将返回手机号登录页面，但不会退出家庭组。'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('取消')),
+                      FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('退出登录'))
+                    ])) ??
+        false;
     if (confirmed) await onLogout();
   }
 
   Future<void> _confirmLeave(BuildContext context) async {
-    final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(title: const Text('退出家庭组？'), content: const Text('退出后将无法查看当前家庭任务，并返回输入邀请码页面。账号仍保持登录。'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')), FilledButton(style: FilledButton.styleFrom(backgroundColor: FubaoColors.orangeStrong), onPressed: () => Navigator.pop(context, true), child: const Text('退出家庭组'))])) ?? false;
+    final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+                    title: const Text('退出家庭组？'),
+                    content: const Text('退出后将无法查看当前家庭任务，并返回输入邀请码页面。账号仍保持登录。'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('取消')),
+                      FilledButton(
+                          style: FilledButton.styleFrom(
+                              backgroundColor: FubaoColors.orangeStrong),
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('退出家庭组'))
+                    ])) ??
+        false;
     if (confirmed) await onLeaveFamily();
   }
 }

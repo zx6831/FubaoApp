@@ -170,3 +170,52 @@ class CareTopic {
   final String suggestedWords;
   final IconData icon;
 }
+
+enum AppMessageType { weeklyReport, alert, system, insight }
+
+@immutable
+class AppMessage {
+  const AppMessage({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.body,
+    required this.createdAt,
+    this.readAt,
+  });
+
+  final String id;
+  final AppMessageType type;
+  final String title;
+  final String body;
+  final DateTime createdAt;
+  final DateTime? readAt;
+
+  bool get isRead => readAt != null;
+
+  AppMessage copyWith({DateTime? readAt}) => AppMessage(
+        id: id,
+        type: type,
+        title: title,
+        body: body,
+        createdAt: createdAt,
+        readAt: readAt ?? this.readAt,
+      );
+}
+
+@immutable
+class WeeklyHealthReport {
+  const WeeklyHealthReport({
+    required this.from,
+    required this.to,
+    required this.completed,
+    required this.total,
+    required this.completionRate,
+  });
+
+  final DateTime from;
+  final DateTime to;
+  final int completed;
+  final int total;
+  final double completionRate;
+}

@@ -31,8 +31,15 @@ class _ElderShellState extends State<ElderShell> {
     final pages = [
       ElderHomePage(repository: widget.repository),
       ElderPlansPage(repository: widget.repository),
-      ElderTopicsPage(repository: widget.repository),
-      ElderProfilePage(onLogout: widget.onLogout, onLeaveFamily: widget.onLeaveFamily),
+      ElderTopicsPage(
+        repository: widget.repository,
+        onOpenPlans: () => setState(() => _index = 1),
+      ),
+      ElderProfilePage(
+        repository: widget.repository,
+        onLogout: widget.onLogout,
+        onLeaveFamily: widget.onLeaveFamily,
+      ),
     ];
 
     return Scaffold(

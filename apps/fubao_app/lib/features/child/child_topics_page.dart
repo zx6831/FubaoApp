@@ -6,6 +6,7 @@ import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../domain/models.dart';
 import '../../widgets/fubao_widgets.dart';
+import '../profile/message_center_page.dart';
 
 class ChildTopicsPage extends StatelessWidget {
   const ChildTopicsPage({required this.repository, super.key});
@@ -42,21 +43,30 @@ class ChildTopicsPage extends StatelessWidget {
             ]),
             const SizedBox(height: 16),
             for (var i = 0; i < repository.topics.length; i++) ...[
-              _TopicCard(topic: repository.topics[i], index: i),
+              _TopicCard(
+                topic: repository.topics[i],
+                index: i,
+                repository: repository,
+              ),
               const SizedBox(height: 12),
             ],
             _WeeklyReport(repository: repository),
             const SizedBox(height: 14),
-            const _MessageHistory(),
+            _MessageHistory(repository: repository),
           ],
         ),
       );
 }
 
 class _TopicCard extends StatelessWidget {
-  const _TopicCard({required this.topic, required this.index});
+  const _TopicCard({
+    required this.topic,
+    required this.index,
+    required this.repository,
+  });
   final CareTopic topic;
   final int index;
+  final FubaoRepository repository;
   @override
   Widget build(BuildContext context) => FubaoCard(
         borderColor: const Color(0xFFFFD9B8),
@@ -91,6 +101,7 @@ class _TopicCard extends StatelessWidget {
             onPressed: () async {
               await Clipboard.setData(
                   ClipboardData(text: topic.suggestedWords));
+              await repository.markTopicCopied(topic.id);
               if (context.mounted) {
                 ScaffoldMessenger.of(context)
                     .showSnackBar(const SnackBar(content: Text('话术已复制')));
@@ -148,9 +159,11 @@ class _WeeklyReport extends StatelessWidget {
             const SizedBox(
                 height: 58,
                 child: VerticalDivider(color: FubaoColors.borderMint)),
-            const Expanded(
-                child:
-                    _ReportMetric(label: '连续打卡天数', value: '12', suffix: '天')),
+            Expanded(
+                child: _ReportMetric(
+                    label: '连续打卡天数',
+                    value: '${repository.spark.streakDays}',
+                    suffix: '天')),
           ]),
         ]),
       );
@@ -184,27 +197,36 @@ class _ReportMetric extends StatelessWidget {
 }
 
 class _MessageHistory extends StatelessWidget {
-  const _MessageHistory();
+  const _MessageHistory({required this.repository});
+  final FubaoRepository repository;
   @override
-  Widget build(BuildContext context) => const FubaoCard(
-        padding: EdgeInsets.all(16),
+  Widget build(BuildContext context) => FubaoCard(
+        padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Expanded(
+            const Expanded(
                 child: Text('消息记录',
                     style:
                         TextStyle(fontSize: 19, fontWeight: FontWeight.w900))),
-            Text('查看全部 ›',
-                style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12))
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MessageCenterPage(repository: repository),
+                ),
+              ),
+              child: const Text('查看全部 ›',
+                  style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12)),
+            ),
           ]),
-          SizedBox(height: 8),
-          _HistoryRow(
+          const SizedBox(height: 8),
+          const _HistoryRow(
               image: FubaoIllustration.coffee,
               title: '轻松聊聊',
               text: '今天有没有一件让你觉得开心的事？',
               time: '今天 08:30'),
-          Divider(),
-          _HistoryRow(
+          const Divider(),
+          const _HistoryRow(
               image: FubaoIllustration.sofa,
               title: '互相支持',
               text: '遇到小困难也没关系，我们一起想想办法吧。',

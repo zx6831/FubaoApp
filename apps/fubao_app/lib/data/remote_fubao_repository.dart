@@ -12,9 +12,11 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
   final RemoteApiClient _api;
   final List<HealthTask> _tasks = [];
   final List<HealthPlan> _plans = [];
-  final List<CareTopic> _topics = const [];
+  final List<CareTopic> _topics = [];
   final List<HealthReading> _healthReadings = [];
   final List<CareAlert> _alerts = [];
+  final List<AppMessage> _messages = [];
+  WeeklyHealthReport? _weeklyReport;
   FamilySpark _spark = const FamilySpark(
     lit: false,
     streakDays: 0,
@@ -44,6 +46,12 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
   FamilySpark get spark => _spark;
 
   @override
+  List<AppMessage> get messages => List.unmodifiable(_messages);
+
+  @override
+  WeeklyHealthReport? get weeklyReport => _weeklyReport;
+
+  @override
   int get completedTaskCount => _tasks.where((task) => task.isCompleted).length;
 
   @override
@@ -64,6 +72,9 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     _plans.clear();
     _healthReadings.clear();
     _alerts.clear();
+    _topics.clear();
+    _messages.clear();
+    _weeklyReport = null;
     _spark = const FamilySpark(
       lit: false,
       streakDays: 0,
@@ -84,6 +95,9 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
       final healthData = await _api.get('health-data');
       final alertData = await _api.get('alerts');
       final sparkData = await _api.get('sparks/current');
+      final topicData = await _api.get('topics/today');
+      final messageData = await _api.get('messages');
+      final reportData = await _api.get('reports/weekly');
       final taskItems = (taskData['items'] as List? ?? const [])
           .whereType<Map>()
           .map((item) => _taskFromJson(item.cast<String, dynamic>()))
@@ -108,6 +122,27 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
         ..addAll((alertData['items'] as List? ?? const [])
             .whereType<Map>()
             .map((item) => _alertFromJson(item.cast<String, dynamic>())));
+      _topics
+        ..clear()
+        ..addAll((topicData['items'] as List? ?? const [])
+            .whereType<Map>()
+            .map((item) => _topicFromJson(item.cast<String, dynamic>())));
+      _messages
+        ..clear()
+        ..addAll((messageData['items'] as List? ?? const [])
+            .whereType<Map>()
+            .map((item) => _messageFromJson(item.cast<String, dynamic>())));
+      final reportTasks =
+          (reportData['tasks'] as Map?)?.cast<String, dynamic>() ?? const {};
+      _weeklyReport = WeeklyHealthReport(
+        from: DateTime.tryParse(reportData['from']?.toString() ?? '') ??
+            DateTime.now().subtract(const Duration(days: 6)),
+        to: DateTime.tryParse(reportData['to']?.toString() ?? '') ??
+            DateTime.now(),
+        completed: (reportTasks['completed'] as num?)?.toInt() ?? 0,
+        total: (reportTasks['total'] as num?)?.toInt() ?? 0,
+        completionRate: (reportData['completionRate'] as num?)?.toDouble() ?? 0,
+      );
       _spark = FamilySpark(
         lit: sparkData['lit'] == true,
         streakDays: (sparkData['streakDays'] as num?)?.toInt() ?? 0,
@@ -231,6 +266,33 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     await refresh();
   }
 
+  @override
+  Future<void> markTopicCopied(String id) async {
+    await _api.post('topics/$id/copied');
+  }
+
+  @override
+  Future<void> markMessageRead(String id) async {
+    final data = await _api.patch('messages/$id/read');
+    final index = _messages.indexWhere((message) => message.id == id);
+    if (index != -1) _messages[index] = _messageFromJson(data);
+    notifyListeners();
+  }
+
+  @override
+  Future<Map<String, dynamic>> exportData() => _api.get('privacy/export');
+
+  @override
+  Future<DateTime> scheduleAccountDeletion() async {
+    final data = await _api.delete('privacy/account');
+    return DateTime.parse(data['deleteAfter'].toString());
+  }
+
+  @override
+  Future<void> submitFeedback(String content) async {
+    await _api.post('feedback', body: {'content': content});
+  }
+
   HealthTask _taskFromJson(Map<String, dynamic> json) {
     final status = json['status']?.toString();
     final record = (json['record'] as Map?)?.cast<String, dynamic>();
@@ -291,6 +353,27 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
         message: json['message']?.toString() ?? '有一条健康记录需要关注',
         status: json['status']?.toString() ?? 'pending',
         createdAt: DateTime.parse(json['createdAt'].toString()),
+      );
+
+  CareTopic _topicFromJson(Map<String, dynamic> json) => CareTopic(
+        id: json['id'].toString(),
+        title: json['title']?.toString() ?? '暖心话题',
+        description: json['description']?.toString() ?? '',
+        suggestedWords: json['suggestedWords']?.toString() ?? '',
+        icon: Icons.chat_bubble_rounded,
+      );
+
+  AppMessage _messageFromJson(Map<String, dynamic> json) => AppMessage(
+        id: json['id'].toString(),
+        type: AppMessageType.values.firstWhere(
+          (type) => type.name == json['type']?.toString(),
+          orElse: () => AppMessageType.system,
+        ),
+        title: json['title']?.toString() ?? '福豹消息',
+        body: json['body']?.toString() ?? '',
+        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+            DateTime.now(),
+        readAt: DateTime.tryParse(json['readAt']?.toString() ?? ''),
       );
 
   HealthMetric _metric(String? value) => HealthMetric.values.firstWhere(

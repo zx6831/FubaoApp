@@ -6,8 +6,13 @@ import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
 
 class ElderTopicsPage extends StatelessWidget {
-  const ElderTopicsPage({required this.repository, super.key});
+  const ElderTopicsPage({
+    required this.repository,
+    this.onOpenPlans,
+    super.key,
+  });
   final FubaoRepository repository;
+  final VoidCallback? onOpenPlans;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -33,10 +38,12 @@ class ElderTopicsPage extends StatelessWidget {
               const SizedBox(height: 18),
               if (repository.allTasksCompleted) ...[
                 const _ElderTopicCard(
-                    image: FubaoIllustration.elderSun, title: '今天有什么开心的事？'),
+                    image: FubaoIllustration.elderSun,
+                    title: '今天有什么开心的事？'),
                 const SizedBox(height: 14),
                 const _ElderTopicCard(
-                    image: FubaoIllustration.elderPark, title: '下午散步时看到什么？'),
+                    image: FubaoIllustration.elderPark,
+                    title: '下午散步时看到什么？'),
               ] else
                 FubaoCard(
                   padding: const EdgeInsets.all(22),
@@ -49,7 +56,10 @@ class ElderTopicsPage extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 23, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 16),
-                    FilledButton(onPressed: () {}, child: const Text('去完成任务')),
+                    FilledButton(
+                      onPressed: onOpenPlans,
+                      child: const Text('去完成任务'),
+                    ),
                   ]),
                 ),
             ],

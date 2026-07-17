@@ -11,6 +11,8 @@ abstract interface class FubaoRepository implements Listenable {
   List<HealthReading> get healthReadings;
   List<CareAlert> get alerts;
   FamilySpark get spark;
+  List<AppMessage> get messages;
+  WeeklyHealthReport? get weeklyReport;
 
   Future<void> refresh();
 
@@ -42,6 +44,16 @@ abstract interface class FubaoRepository implements Listenable {
     String status, {
     String? closeReason,
   });
+
+  Future<void> markTopicCopied(String id);
+
+  Future<void> markMessageRead(String id);
+
+  Future<Map<String, dynamic>> exportData();
+
+  Future<DateTime> scheduleAccountDeletion();
+
+  Future<void> submitFeedback(String content);
 
   void dispose();
 }

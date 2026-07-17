@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
 import '../profile/profile_settings_page.dart';
+import '../profile/message_center_page.dart';
 
 class ChildProfilePage extends StatelessWidget {
-  const ChildProfilePage({required this.onLogout, super.key});
+  const ChildProfilePage({required this.onLogout, this.repository, super.key});
   final Future<void> Function() onLogout;
+  final FubaoRepository? repository;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -18,9 +21,25 @@ class ChildProfilePage extends StatelessWidget {
             Row(children: [
               const BrandMark(),
               const Spacer(),
-              _ProfileAction(Icons.notifications_none_rounded, onTap: () => _open(context, ProfileSettingKind.notifications)),
+              _ProfileAction(
+                Icons.notifications_none_rounded,
+                onTap: () => repository == null
+                    ? _open(context, ProfileSettingKind.notifications)
+                    : Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              MessageCenterPage(repository: repository!),
+                        ),
+                      ),
+              ),
               const SizedBox(width: 10),
-              _ProfileAction(Icons.settings_outlined, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AccountSettingsPage(onLogout: onLogout)))),
+              _ProfileAction(Icons.settings_outlined,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              AccountSettingsPage(onLogout: onLogout)))),
             ]),
             const SizedBox(height: 16),
             FubaoCard(
@@ -128,36 +147,41 @@ class ChildProfilePage extends StatelessWidget {
             ]),
             const SizedBox(height: 12),
             Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                    color: const Color(0xFFF4FBF7),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: FubaoColors.borderMint)),
-                child: const Row(children: [
-                  FubaoIllustrationAsset(FubaoIllustration.plants,
-                      width: 86, height: 62),
-                  SizedBox(width: 14),
-                  Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                        Text('一起成长的小约定',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w800)),
-                        SizedBox(height: 4),
-                        Text('每天进步一点点，我们都很棒！',
-                            style: TextStyle(
-                                color: FubaoColors.inkMuted, fontSize: 11)),
-                      ])),
-                  Icon(Icons.favorite_rounded, color: FubaoColors.mintStrong),
-                ]),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFF4FBF7),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: FubaoColors.borderMint)),
+              child: const Row(children: [
+                FubaoIllustrationAsset(FubaoIllustration.plants,
+                    width: 86, height: 62),
+                SizedBox(width: 14),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text('一起成长的小约定',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w800)),
+                      SizedBox(height: 4),
+                      Text('每天进步一点点，我们都很棒！',
+                          style: TextStyle(
+                              color: FubaoColors.inkMuted, fontSize: 11)),
+                    ])),
+                Icon(Icons.favorite_rounded, color: FubaoColors.mintStrong),
+              ]),
             ),
           ],
         ),
       );
 
   void _open(BuildContext context, ProfileSettingKind kind) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileSettingsPage(kind: kind)));
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileSettingsPage(kind: kind, repository: repository),
+      ),
+    );
   }
 }
 
@@ -170,7 +194,10 @@ class _ProfileAction extends StatelessWidget {
         color: Colors.white,
         elevation: 2,
         borderRadius: BorderRadius.circular(14),
-      child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(14), child: SizedBox(width: 44, height: 44, child: Icon(icon))),
+        child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox(width: 44, height: 44, child: Icon(icon))),
       );
 }
 

@@ -30,7 +30,10 @@ class _ChildShellState extends State<ChildShell> {
       ChildHomePage(repository: widget.repository),
       ChildPlansPage(repository: widget.repository),
       ChildTopicsPage(repository: widget.repository),
-      ChildProfilePage(onLogout: widget.onLogout),
+      ChildProfilePage(
+        repository: widget.repository,
+        onLogout: widget.onLogout,
+      ),
     ];
 
     return Scaffold(

@@ -114,6 +114,33 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
       );
 
   @override
+  List<AppMessage> messages = [
+    AppMessage(
+      id: 'weekly-report-demo',
+      type: AppMessageType.weeklyReport,
+      title: '本周健康周报已生成',
+      body: '看看本周任务完成与健康记录变化。',
+      createdAt: DateTime(2026, 7, 18, 8, 30),
+    ),
+    AppMessage(
+      id: 'insight-demo',
+      type: AppMessageType.insight,
+      title: '健康小知识',
+      body: '规律记录比单次数字更有参考价值。',
+      createdAt: DateTime(2026, 7, 17, 21, 10),
+    ),
+  ];
+
+  @override
+  WeeklyHealthReport get weeklyReport => WeeklyHealthReport(
+        from: DateTime(2026, 7, 12),
+        to: DateTime(2026, 7, 18),
+        completed: completedTaskCount,
+        total: tasks.length,
+        completionRate: tasks.isEmpty ? 0 : completedTaskCount / tasks.length,
+      );
+
+  @override
   Future<void> refresh() async {}
 
   @override
@@ -194,4 +221,41 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
     String status, {
     String? closeReason,
   }) async {}
+
+  @override
+  Future<void> markTopicCopied(String id) async {}
+
+  @override
+  Future<void> markMessageRead(String id) async {
+    messages = [
+      for (final message in messages)
+        if (message.id == id)
+          message.copyWith(readAt: DateTime.now())
+        else
+          message,
+    ];
+    notifyListeners();
+  }
+
+  @override
+  Future<Map<String, dynamic>> exportData() async => {
+        'generatedAt': DateTime.now().toIso8601String(),
+        'mode': 'demo',
+        'tasks': [
+          for (final task in tasks)
+            {
+              'id': task.id,
+              'title': task.title,
+              'completed': task.isCompleted,
+            },
+        ],
+        'healthReadings': healthReadings.length,
+      };
+
+  @override
+  Future<DateTime> scheduleAccountDeletion() async =>
+      DateTime.now().add(const Duration(days: 30));
+
+  @override
+  Future<void> submitFeedback(String content) async {}
 }
