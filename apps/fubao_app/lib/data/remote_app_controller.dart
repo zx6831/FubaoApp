@@ -126,6 +126,15 @@ class RemoteAppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> leaveFamily() => _run(() async {
+        await api.delete('families/current/membership');
+        invitationCode = null;
+        profileComplete = false;
+        deviceActive = false;
+        discoveredDeviceSerial = null;
+        state = RemoteFlowState.familySetup;
+      });
+
   Future<void> _resolveFamilyState() async {
     try {
       final family = await api.get('families/current');

@@ -100,6 +100,16 @@ describe('Authentication and family binding', () => {
       .post('/api/families/invitations')
       .set('Authorization', `Bearer ${child.accessToken}`)
       .expect(409);
+
+    const left = await request(app.getHttpServer())
+      .delete('/api/families/current/membership')
+      .set('Authorization', `Bearer ${elder.accessToken}`)
+      .expect(200);
+    expect(left.body.data).toMatchObject({ left: true, sessionActive: true });
+    await request(app.getHttpServer())
+      .get('/api/families/current')
+      .set('Authorization', `Bearer ${elder.accessToken}`)
+      .expect(404);
   });
 
   it('rejects invalid verification codes and unauthenticated family access', async () => {

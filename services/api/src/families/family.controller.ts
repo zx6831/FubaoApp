@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -33,5 +33,11 @@ export class FamilyController {
   @Post('join')
   join(@CurrentUser() user: AuthenticatedUser, @Body() body: JoinFamilyDto) {
     return this.families.join(user, body.code);
+  }
+
+  @Roles('elder')
+  @Delete('current/membership')
+  leave(@CurrentUser() user: AuthenticatedUser) {
+    return this.families.leave(user);
   }
 }

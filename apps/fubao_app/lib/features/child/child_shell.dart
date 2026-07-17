@@ -10,12 +10,12 @@ import 'child_topics_page.dart';
 class ChildShell extends StatefulWidget {
   const ChildShell({
     required this.repository,
-    required this.onSwitchRole,
+    required this.onLogout,
     super.key,
   });
 
   final FubaoRepository repository;
-  final VoidCallback onSwitchRole;
+  final Future<void> Function() onLogout;
 
   @override
   State<ChildShell> createState() => _ChildShellState();
@@ -30,7 +30,7 @@ class _ChildShellState extends State<ChildShell> {
       ChildHomePage(repository: widget.repository),
       ChildPlansPage(repository: widget.repository),
       ChildTopicsPage(repository: widget.repository),
-      ChildProfilePage(onSwitchRole: widget.onSwitchRole),
+      ChildProfilePage(onLogout: widget.onLogout),
     ];
 
     return Scaffold(

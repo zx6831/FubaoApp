@@ -53,7 +53,7 @@ void main() {
       (tester) async {
     await pumpPhonePage(
       tester,
-      ChildProfilePage(onSwitchRole: () {}),
+      ChildProfilePage(onLogout: () async {}),
     );
 
     final dot = find.byKey(const Key('device-online-dot'));

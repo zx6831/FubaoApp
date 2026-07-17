@@ -92,7 +92,7 @@ void main() {
     });
 
     testWidgets('younger profile', (tester) async {
-      await pumpReferencePage(tester, ChildProfilePage(onSwitchRole: () {}));
+      await pumpReferencePage(tester, ChildProfilePage(onLogout: () async {}));
       await expectPage(tester, 'younger_profile');
     });
 
@@ -118,7 +118,7 @@ void main() {
     });
 
     testWidgets('elder profile', (tester) async {
-      await pumpReferencePage(tester, ElderProfilePage(onSwitchRole: () {}));
+      await pumpReferencePage(tester, ElderProfilePage(onLogout: () async {}, onLeaveFamily: () async {}));
       await expectPage(tester, 'elder_profile');
     });
   });

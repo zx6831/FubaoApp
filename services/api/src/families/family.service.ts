@@ -93,7 +93,11 @@ export class FamilyService {
         if (invitation.family.members.some((member) => member.role === 'elder')) {
           throw new ConflictException('当前家庭已绑定长辈账号');
         }
-        await tx.familyMember.create({ data: { familyId: invitation.familyId, userId: user.sub, role: 'elder' } });
+        await tx.familyMember.upsert({
+          where: { familyId_userId: { familyId: invitation.familyId, userId: user.sub } },
+          create: { familyId: invitation.familyId, userId: user.sub, role: 'elder' },
+          update: { role: 'elder', status: 'active', joinedAt: new Date(), exitedAt: null },
+        });
         await tx.invitation.update({ where: { id: invitation.id }, data: { usedAt: new Date() } });
         return { joined: true, familyId: invitation.familyId, role: 'elder' as const };
       });
@@ -113,6 +117,29 @@ export class FamilyService {
     family.members.push({ userId: user.sub, role: 'elder', nickname: elder.nickname });
     invitation.usedAt = new Date();
     return { joined: true, familyId: family.id, role: 'elder' as const };
+  }
+
+  async leave(user: AuthenticatedUser) {
+    if (user.role !== 'elder') {
+      throw new ForbiddenException('子女主账号不能退出家庭组，请使用家庭解散流程');
+    }
+    if (this.prisma.isEnabled()) {
+      const membership = await this.prisma.familyMember.findFirst({
+        where: { userId: user.sub, role: 'elder', status: 'active' },
+      });
+      if (!membership) throw new NotFoundException('尚未加入家庭');
+      await this.prisma.familyMember.update({
+        where: { id: membership.id },
+        data: { status: 'exited', exitedAt: new Date() },
+      });
+      return { left: true, familyId: membership.familyId, sessionActive: true };
+    }
+    const family = [...this.memory.families.values()].find((item) =>
+      item.members.some((member) => member.userId === user.sub && member.role === 'elder'),
+    );
+    if (!family) throw new NotFoundException('尚未加入家庭');
+    family.members = family.members.filter((member) => member.userId !== user.sub);
+    return { left: true, familyId: family.id, sessionActive: true };
   }
 
   private serialize(family: {

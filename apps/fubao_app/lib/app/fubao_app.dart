@@ -78,11 +78,12 @@ class _FubaoAppState extends State<FubaoApp> {
   Widget _buildDemoHome() => switch (_role) {
         AppRole.child => ChildShell(
             repository: _repository,
-            onSwitchRole: () => setState(() => _role = null),
+            onLogout: () async => setState(() => _role = null),
           ),
         AppRole.elder => ElderShell(
             repository: _repository,
-            onSwitchRole: () => setState(() => _role = null),
+            onLogout: () async => setState(() => _role = null),
+            onLeaveFamily: () async => setState(() => _role = null),
           ),
         null => RoleSelectionPage(
             onSelected: (role) => setState(() => _role = role),
@@ -127,11 +128,14 @@ class _FubaoAppState extends State<FubaoApp> {
         RemoteFlowState.ready => controller.role == AppRole.child
             ? ChildShell(
                 repository: _repository,
-                onSwitchRole: () => controller.logout(),
+                onLogout: controller.logout,
               )
             : ElderShell(
                 repository: _repository,
-                onSwitchRole: () => controller.logout(),
+                onLogout: controller.logout,
+                onLeaveFamily: () async {
+                  await controller.leaveFamily();
+                },
               ),
       },
     );

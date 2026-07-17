@@ -90,4 +90,26 @@ void main() {
     expect(controller.state, RemoteFlowState.familySetup);
     controller.dispose();
   });
+
+  test('leaving a family keeps the elder session active', () async {
+    final elderJson = sessionJson('elder-access', 'elder-refresh')
+      ..['user'] = {'id': 'elder-1', 'role': 'elder', 'nickname': '王阿姨'};
+    final store = MemorySessionStore()..value = AuthSession.fromJson(elderJson);
+    final client = RemoteApiClient(
+      baseUrl: 'http://localhost:3000/api',
+      sessionStore: store,
+      httpClient: MockClient((request) async => jsonResponse({
+            'code': 0,
+            'msg': 'success',
+            'data': {'left': true, 'sessionActive': true},
+          }, 200)),
+    );
+    await client.restoreSession();
+    final controller = RemoteAppController(client)..state = RemoteFlowState.ready;
+
+    expect(await controller.leaveFamily(), isTrue);
+    expect(controller.state, RemoteFlowState.familySetup);
+    expect(store.value?.role, AppRole.elder);
+    controller.dispose();
+  });
 }

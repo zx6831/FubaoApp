@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../widgets/fubao_widgets.dart';
+import '../profile/profile_settings_page.dart';
 
 class ChildProfilePage extends StatelessWidget {
-  const ChildProfilePage({required this.onSwitchRole, super.key});
-  final VoidCallback onSwitchRole;
+  const ChildProfilePage({required this.onLogout, super.key});
+  final Future<void> Function() onLogout;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -14,15 +15,16 @@ class ChildProfilePage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
           children: [
-            const Row(children: [
-              BrandMark(),
-              Spacer(),
-              _ProfileAction(Icons.notifications_none_rounded),
-              SizedBox(width: 10),
-              _ProfileAction(Icons.settings_outlined),
+            Row(children: [
+              const BrandMark(),
+              const Spacer(),
+              _ProfileAction(Icons.notifications_none_rounded, onTap: () => _open(context, ProfileSettingKind.notifications)),
+              const SizedBox(width: 10),
+              _ProfileAction(Icons.settings_outlined, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AccountSettingsPage(onLogout: onLogout)))),
             ]),
             const SizedBox(height: 16),
             FubaoCard(
+              onTap: () => _open(context, ProfileSettingKind.family),
               borderColor: const Color(0xFFF2E5D9),
               padding: const EdgeInsets.all(16),
               child: Row(children: [
@@ -109,13 +111,13 @@ class ChildProfilePage extends StatelessWidget {
               ]),
             ),
             const SizedBox(height: 14),
-            const _SettingsGroup(items: [
+            _SettingsGroup(onTap: (kind) => _open(context, kind), items: const [
               (Icons.groups_rounded, '家庭成员', FubaoColors.mintStrong),
               (Icons.folder_copy_rounded, '健康档案', FubaoColors.orangeStrong),
               (Icons.watch_rounded, '设备管理', FubaoColors.mintStrong),
             ]),
             const SizedBox(height: 12),
-            const _SettingsGroup(items: [
+            _SettingsGroup(onTap: (kind) => _open(context, kind), items: const [
               (
                 Icons.notifications_active_rounded,
                 '提醒与勿扰',
@@ -125,10 +127,7 @@ class ChildProfilePage extends StatelessWidget {
               (Icons.chat_bubble_rounded, '帮助与反馈', FubaoColors.orangeStrong),
             ]),
             const SizedBox(height: 12),
-            InkWell(
-              onTap: onSwitchRole,
-              borderRadius: BorderRadius.circular(22),
-              child: Container(
+            Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                     color: const Color(0xFFF4FBF7),
@@ -152,34 +151,40 @@ class ChildProfilePage extends StatelessWidget {
                       ])),
                   Icon(Icons.favorite_rounded, color: FubaoColors.mintStrong),
                 ]),
-              ),
             ),
           ],
         ),
       );
+
+  void _open(BuildContext context, ProfileSettingKind kind) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileSettingsPage(kind: kind)));
+  }
 }
 
 class _ProfileAction extends StatelessWidget {
-  const _ProfileAction(this.icon);
+  const _ProfileAction(this.icon, {required this.onTap});
   final IconData icon;
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
         color: Colors.white,
         elevation: 2,
         borderRadius: BorderRadius.circular(14),
-        child: SizedBox(width: 44, height: 44, child: Icon(icon)),
+      child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(14), child: SizedBox(width: 44, height: 44, child: Icon(icon))),
       );
 }
 
 class _SettingsGroup extends StatelessWidget {
-  const _SettingsGroup({required this.items});
+  const _SettingsGroup({required this.items, required this.onTap});
   final List<(IconData, String, Color)> items;
+  final ValueChanged<ProfileSettingKind> onTap;
   @override
   Widget build(BuildContext context) => FubaoCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         child: Column(children: [
           for (var i = 0; i < items.length; i++) ...[
             ListTile(
+              onTap: () => onTap(_kindFor(items[i].$2)),
               minLeadingWidth: 28,
               contentPadding: EdgeInsets.zero,
               leading: Icon(items[i].$1, color: items[i].$3),
@@ -193,4 +198,13 @@ class _SettingsGroup extends StatelessWidget {
           ],
         ]),
       );
+
+  ProfileSettingKind _kindFor(String title) => switch (title) {
+        '家庭成员' => ProfileSettingKind.family,
+        '健康档案' => ProfileSettingKind.health,
+        '设备管理' => ProfileSettingKind.device,
+        '提醒与勿扰' => ProfileSettingKind.reminder,
+        '隐私与数据' => ProfileSettingKind.privacy,
+        _ => ProfileSettingKind.help,
+      };
 }
