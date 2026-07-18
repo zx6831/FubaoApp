@@ -30,4 +30,17 @@ export class NotificationsService {
     }
     return { removed: true };
   }
+
+  async tokensForUser(userId: string): Promise<string[]> {
+    if (this.prisma.isEnabled()) {
+      const items = await this.prisma.pushToken.findMany({
+        where: { userId },
+        select: { token: true },
+      });
+      return items.map((item) => item.token);
+    }
+    return [...this.memory.entries()]
+      .filter(([, item]) => item.userId === userId)
+      .map(([token]) => token);
+  }
 }

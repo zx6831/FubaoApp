@@ -26,7 +26,7 @@ describe('Topics, messages, feedback, and privacy', () => {
 
   it('provides typed messages and marks them read', async () => {
     const messages = await request(app.getHttpServer()).get('/api/messages').set(auth()).expect(200);
-    expect(messages.body.data.items.map((item: { type: string }) => item.type)).toEqual(expect.arrayContaining(['weeklyReport', 'insight']));
+    expect(messages.body.data.items.map((item: { type: string }) => item.type)).toEqual(expect.arrayContaining(['weeklyReport', 'insight', 'system']));
     const id = messages.body.data.items[0].id;
     await request(app.getHttpServer()).patch(`/api/messages/${id}/read`).set(auth()).expect(200)
       .expect(({ body }) => expect(body.data.readAt).toBeTruthy());

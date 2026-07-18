@@ -1,10 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { MemoryAlertV1, MemoryHealthReadingV1, MemoryIdentityState } from '../auth/memory-identity-state';
 import { FamilyService } from '../families/family.service';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../infrastructure/prisma.service';
+import { NOTIFICATION_ADAPTER, NotificationAdapter } from '../integrations/notification.adapter';
+import { NotificationsService } from '../integrations/notifications.service';
 import { CreateHealthReadingDto, HealthReadingsQueryDto, UpdateAlertDto } from './dto/health.dto';
 
 type Metric = 'bloodPressure' | 'bloodGlucose' | 'mood' | 'weight';
@@ -15,11 +17,15 @@ export class HealthService {
     private readonly prisma: PrismaService,
     private readonly memory: MemoryIdentityState,
     private readonly families: FamilyService,
+    private readonly notifications: NotificationsService,
+    @Inject(NOTIFICATION_ADAPTER)
+    private readonly notificationAdapter: NotificationAdapter,
   ) {}
 
   async createReading(user: AuthenticatedUser, body: CreateHealthReadingDto) {
     const family = await this.families.current(user);
     const elder = family.members.find((member: { role: string }) => member.role === 'elder');
+    const child = family.members.find((member: { role: string }) => member.role === 'child');
     if (!elder) throw new NotFoundException('家庭尚未绑定长辈');
     const value = this.readingValue(body);
     const recordedAt = body.recordedAt ? new Date(body.recordedAt) : new Date();
@@ -45,7 +51,7 @@ export class HealthService {
       } satisfies MemoryHealthReadingV1;
       this.memory.healthReadingsV1.set(reading.id, reading);
     }
-    const alert = await this.maybeCreateAlert(family.id, elder.userId, reading.id, body.type, value);
+    const alert = await this.maybeCreateAlert(family.id, elder.userId, child?.userId, reading.id, body.type, value);
     await this.markActivity(family.id, user.role);
     return { reading: this.serializeReading(reading), alert: alert ? this.serializeAlert(alert) : null };
   }
@@ -178,7 +184,7 @@ export class HealthService {
     this.memory.sparkActivitiesV1.set(key, activity);
   }
 
-  private async maybeCreateAlert(familyId: string, userId: string, readingId: string, metric: Metric, value: Record<string, unknown>) {
+  private async maybeCreateAlert(familyId: string, userId: string, childUserId: string | undefined, readingId: string, metric: Metric, value: Record<string, unknown>) {
     const assessment = this.assess(metric, value);
     if (!assessment) return null;
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -188,10 +194,12 @@ export class HealthService {
         orderBy: { createdAt: 'desc' },
       });
       if (existing) return existing;
-      return this.prisma.alert.create({ data: {
+      const alert = await this.prisma.alert.create({ data: {
         familyId, userId, healthReadingId: readingId, level: assessment.level, metric,
         message: assessment.message, dedupeKey: `${familyId}:${metric}:${assessment.level}:${Date.now()}`,
       } });
+      await this.publishAlertMessage(familyId, childUserId, alert);
+      return alert;
     }
     const existing = [...this.memory.alertsV1.values()].find((alert) =>
       alert.familyId === familyId && alert.metric === metric && alert.level === assessment.level && alert.createdAt >= since);
@@ -201,7 +209,50 @@ export class HealthService {
       message: assessment.message, status: 'pending', dedupeKey: randomUUID(), createdAt: new Date(),
     };
     this.memory.alertsV1.set(alert.id, alert);
+    await this.publishAlertMessage(familyId, childUserId, alert);
     return alert;
+  }
+
+  private async publishAlertMessage(
+    familyId: string,
+    childUserId: string | undefined,
+    alert: { id: string; level: 'L1' | 'L2' | 'L3'; message: string },
+  ) {
+    if (!childUserId) return;
+    const title = alert.level === 'L2' ? '需要及时关注的健康提醒' : '新的健康提醒';
+    if (this.prisma.isEnabled()) {
+      await this.prisma.message.create({
+        data: {
+          familyId,
+          userId: childUserId,
+          type: 'alert',
+          title,
+          body: alert.message,
+          payload: { alertId: alert.id, level: alert.level },
+        },
+      });
+    } else {
+      const id = randomUUID();
+      this.memory.engagementMessages.set(id, {
+        id,
+        familyId,
+        userId: childUserId,
+        type: 'alert',
+        title,
+        body: alert.message,
+        payload: { alertId: alert.id, level: alert.level },
+        readAt: null,
+        createdAt: new Date(),
+      });
+    }
+    const tokens = await this.notifications.tokensForUser(childUserId);
+    await Promise.allSettled(tokens.map((deviceToken) =>
+      this.notificationAdapter.send({
+        deviceToken,
+        title,
+        body: alert.message,
+        data: { alertId: alert.id, level: alert.level },
+      })));
   }
 
   private assess(metric: Metric, value: Record<string, unknown>): { level: 'L1' | 'L2'; message: string } | null {

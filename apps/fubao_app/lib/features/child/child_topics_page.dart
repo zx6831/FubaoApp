@@ -130,50 +130,59 @@ class _WeeklyReport extends StatelessWidget {
   const _WeeklyReport({required this.repository});
   final FubaoRepository repository;
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-              colors: [Color(0xFFF0FAF6), Color(0xFFFAFDFB)]),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: FubaoColors.borderMint),
-        ),
-        child: Column(children: [
-          Row(children: [
-            const FubaoIllustrationAsset(FubaoIllustration.planClipboard,
-                width: 84, height: 72),
-            const SizedBox(width: 12),
-            const Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text('本周健康周报',
-                      style:
-                          TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
-                  Text('3 月 31 日 - 4 月 6 日',
-                      style:
-                          TextStyle(color: FubaoColors.inkMuted, fontSize: 12)),
-                ])),
-          ]),
-          const Divider(color: FubaoColors.borderMint),
-          Row(children: [
-            Expanded(
-                child: _ReportMetric(
-                    label: '任务完成情况',
-                    value:
-                        '${repository.completedTaskCount} / ${repository.tasks.length}',
-                    suffix: '次')),
-            const SizedBox(
-                height: 58,
-                child: VerticalDivider(color: FubaoColors.borderMint)),
-            Expanded(
-                child: _ReportMetric(
-                    label: '连续打卡天数',
-                    value: '${repository.spark.streakDays}',
-                    suffix: '天')),
-          ]),
+  Widget build(BuildContext context) {
+    final report = repository.weeklyReport;
+    final from = report?.from;
+    final to = report?.to;
+    final dateLabel = from == null || to == null
+        ? '本周'
+        : '${from.month} 月 ${from.day} 日 - ${to.month} 月 ${to.day} 日';
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+            colors: [Color(0xFFF0FAF6), Color(0xFFFAFDFB)]),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: FubaoColors.borderMint),
+      ),
+      child: Column(children: [
+        Row(children: [
+          const FubaoIllustrationAsset(FubaoIllustration.planClipboard,
+              width: 84, height: 72),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                const Text('本周健康周报',
+                    style:
+                        TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+                Text(dateLabel,
+                    style: const TextStyle(
+                        color: FubaoColors.inkMuted, fontSize: 12)),
+              ])),
         ]),
-      );
+        const Divider(color: FubaoColors.borderMint),
+        Row(children: [
+          Expanded(
+              child: _ReportMetric(
+                  label: '任务完成情况',
+                  value: report == null
+                      ? '${repository.completedTaskCount} / ${repository.tasks.length}'
+                      : '${report.completed} / ${report.total}',
+                  suffix: '次')),
+          const SizedBox(
+              height: 58,
+              child: VerticalDivider(color: FubaoColors.borderMint)),
+          Expanded(
+              child: _ReportMetric(
+                  label: '连续打卡天数',
+                  value: '${repository.spark.streakDays}',
+                  suffix: '天')),
+        ]),
+      ]),
+    );
+  }
 }
 
 class _ReportMetric extends StatelessWidget {

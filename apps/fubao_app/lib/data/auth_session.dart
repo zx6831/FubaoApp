@@ -15,9 +15,11 @@ class AuthSession {
     final user = json['user'] as Map<String, dynamic>;
     return AuthSession(
       accessToken: json['accessToken'] as String,
-      accessTokenExpiresAt: DateTime.parse(json['accessTokenExpiresAt'] as String),
+      accessTokenExpiresAt:
+          DateTime.parse(json['accessTokenExpiresAt'] as String),
       refreshToken: json['refreshToken'] as String,
-      refreshTokenExpiresAt: DateTime.parse(json['refreshTokenExpiresAt'] as String),
+      refreshTokenExpiresAt:
+          DateTime.parse(json['refreshTokenExpiresAt'] as String),
       userId: user['id'] as String,
       role: user['role'] == 'elder' ? AppRole.elder : AppRole.child,
       nickname: user['nickname'] as String,

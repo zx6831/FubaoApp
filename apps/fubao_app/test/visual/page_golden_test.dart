@@ -118,7 +118,8 @@ void main() {
     });
 
     testWidgets('elder profile', (tester) async {
-      await pumpReferencePage(tester, ElderProfilePage(onLogout: () async {}, onLeaveFamily: () async {}));
+      await pumpReferencePage(tester,
+          ElderProfilePage(onLogout: () async {}, onLeaveFamily: () async {}));
       await expectPage(tester, 'elder_profile');
     });
   });

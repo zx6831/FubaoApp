@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design/fubao_colors.dart';
 import '../design/fubao_illustrations.dart';
+import '../data/speech_service.dart';
 import '../design/fubao_visual_spec.dart';
 import '../domain/models.dart';
 
@@ -541,9 +542,10 @@ class _FubaoNavigationItem extends StatelessWidget {
 }
 
 class ReadAloudButton extends StatelessWidget {
-  const ReadAloudButton({required this.text, super.key});
+  const ReadAloudButton({required this.text, this.rate = 0.5, super.key});
 
   final String text;
+  final double rate;
 
   @override
   Widget build(BuildContext context) {
@@ -552,9 +554,13 @@ class ReadAloudButton extends StatelessWidget {
       label: '点击朗读本页内容',
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
-        onTap: () {
+        onTap: () async {
+          final speaking = await SpeechService().speak(text, rate: rate);
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('朗读内容：$text')),
+            SnackBar(
+              content: Text(speaking ? '正在朗读' : '当前调试平台不支持系统朗读，请在 iPhone 上体验。'),
+            ),
           );
         },
         child: Container(

@@ -37,6 +37,6 @@ import { InfrastructureModule } from '../infrastructure/infrastructure.module';
         config.get<string>('SMS_MODE') === 'http' ? http : fake,
     },
   ],
-  exports: [NOTIFICATION_ADAPTER, SMS_ADAPTER, FakeNotificationAdapter, FakeSmsAdapter],
+  exports: [NOTIFICATION_ADAPTER, SMS_ADAPTER, NotificationsService, FakeNotificationAdapter, FakeSmsAdapter],
 })
 export class IntegrationsModule {}

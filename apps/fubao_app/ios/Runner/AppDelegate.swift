@@ -1,4 +1,5 @@
 import Flutter
+import AVFoundation
 import Security
 import UIKit
 import UserNotifications
@@ -98,6 +99,22 @@ import UserNotifications
         }
         presenter.present(UIActivityViewController(activityItems: [text], applicationActivities: nil), animated: true)
         result("system")
+      case "speak":
+        guard let arguments = call.arguments as? [String: Any],
+          let text = arguments["text"] as? String else {
+          result(FlutterError(code: "INVALID_TEXT", message: "Speech text must be a string", details: nil))
+          return
+        }
+        let normalizedRate = (arguments["rate"] as? NSNumber)?.floatValue ?? 0.5
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "zh-CN")
+        utterance.rate = 0.38 + min(max(normalizedRate, 0), 1) * 0.18
+        Self.speechSynthesizer.stopSpeaking(at: .immediate)
+        Self.speechSynthesizer.speak(utterance)
+        result(true)
+      case "stopSpeaking":
+        Self.speechSynthesizer.stopSpeaking(at: .immediate)
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -107,6 +124,7 @@ import UserNotifications
   private static let keychainService = "cn.fubao.app.auth"
   private static let keychainAccount = "active-session"
   private static let cacheService = "cn.fubao.app.secure-cache"
+  private static let speechSynthesizer = AVSpeechSynthesizer()
 
   private static func baseQuery() -> [String: Any] {
     [

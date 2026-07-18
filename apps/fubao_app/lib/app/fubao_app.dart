@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/fubao_repository.dart';
+import '../data/accessibility_settings.dart';
 import '../data/local_data_store.dart';
 import '../data/demo_fubao_repository.dart';
 import '../data/remote_api_client.dart';
@@ -22,12 +23,14 @@ class FubaoApp extends StatefulWidget {
     this.config,
     this.repository,
     this.remoteController,
+    this.accessibilitySettings,
     super.key,
   });
 
   final AppConfig? config;
   final FubaoRepository? repository;
   final RemoteAppController? remoteController;
+  final AccessibilitySettings? accessibilitySettings;
 
   @override
   State<FubaoApp> createState() => _FubaoAppState();
@@ -40,10 +43,16 @@ class _FubaoAppState extends State<FubaoApp> {
   RemoteAppController? _remoteController;
   bool _ownsRemoteController = false;
   AppRole? _role;
+  late final AccessibilitySettings _accessibilitySettings;
+  late final bool _ownsAccessibilitySettings;
 
   @override
   void initState() {
     super.initState();
+    _ownsAccessibilitySettings = widget.accessibilitySettings == null;
+    _accessibilitySettings =
+        widget.accessibilitySettings ?? AccessibilitySettings();
+    _accessibilitySettings.load();
     _config = widget.config ?? AppConfig.fromValues();
     if (_config.usesRemoteApi) {
       _ownsRemoteController = widget.remoteController == null;
@@ -95,16 +104,29 @@ class _FubaoAppState extends State<FubaoApp> {
     _repository.removeListener(_handleRepositoryState);
     if (_ownsRepository) _repository.dispose();
     if (_ownsRemoteController) _remoteController?.dispose();
+    if (_ownsAccessibilitySettings) _accessibilitySettings.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: '福豹',
-      theme: buildFubaoTheme(),
-      home: _config.usesRemoteApi ? _buildRemoteHome() : _buildDemoHome(),
+    return ListenableBuilder(
+      listenable: _accessibilitySettings,
+      builder: (context, _) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: '福豹',
+        theme: buildFubaoTheme(),
+        builder: (context, child) => AccessibilitySettingsScope(
+          settings: _accessibilitySettings,
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(_accessibilitySettings.textScale),
+            ),
+            child: child!,
+          ),
+        ),
+        home: _config.usesRemoteApi ? _buildRemoteHome() : _buildDemoHome(),
+      ),
     );
   }
 

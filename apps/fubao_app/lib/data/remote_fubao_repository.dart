@@ -349,6 +349,41 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     });
   }
 
+  @override
+  Future<Map<String, dynamic>> familyDetails() => _api.get('families/current');
+
+  @override
+  Future<Map<String, dynamic>> elderHealthProfile() =>
+      _api.get('profiles/elder');
+
+  @override
+  Future<Map<String, dynamic>> updateElderHealthProfile(
+    Map<String, dynamic> profile,
+  ) =>
+      _api.put('profiles/elder', body: profile);
+
+  @override
+  Future<Map<String, dynamic>> currentDevice() => _api.get('devices/current');
+
+  @override
+  Future<Map<String, dynamic>> updateDeviceSettings(
+    Map<String, dynamic> settings,
+  ) =>
+      _api.patch('devices/settings', body: settings);
+
+  @override
+  Future<Map<String, dynamic>> setDeviceOnline(bool online) => _api.patch(
+        'devices/status',
+        body: {'status': online ? 'online' : 'offline'},
+      );
+
+  @override
+  Future<Map<String, dynamic>> unbindDevice() => _api.delete('devices/current');
+
+  @override
+  Future<Map<String, dynamic>> factoryResetDevice() =>
+      _api.post('devices/factory-reset');
+
   HealthTask _taskFromJson(Map<String, dynamic> json) {
     final status = json['status']?.toString();
     final record = (json['record'] as Map?)?.cast<String, dynamic>();
@@ -368,6 +403,7 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
           ? null
           : DateTime.tryParse(record!['completedAt'].toString()),
       recordData: (record?['data'] as Map?)?.cast<String, dynamic>(),
+      scheduledDate: DateTime.tryParse(json['date']?.toString() ?? ''),
     );
   }
 
@@ -591,6 +627,7 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
         'isSkipped': task.isSkipped,
         'recordedAt': task.recordedAt?.toIso8601String(),
         'recordData': task.recordData,
+        'scheduledDate': task.scheduledDate?.toIso8601String(),
       };
 
   HealthTask _taskFromCache(Map<String, dynamic> json) => HealthTask(
@@ -604,6 +641,8 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
         isSkipped: json['isSkipped'] == true,
         recordedAt: DateTime.tryParse(json['recordedAt']?.toString() ?? ''),
         recordData: (json['recordData'] as Map?)?.cast<String, dynamic>(),
+        scheduledDate:
+            DateTime.tryParse(json['scheduledDate']?.toString() ?? ''),
       );
 
   Map<String, dynamic> _planToCache(HealthPlan plan) => {

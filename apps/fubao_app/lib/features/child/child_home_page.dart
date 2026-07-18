@@ -190,48 +190,51 @@ class _SparkHero extends StatelessWidget {
   final int days;
 
   @override
-  Widget build(BuildContext context) => Container(
-        height: 182,
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFF4FCF8), Color(0xFFFCFDFB)],
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    return Container(
+      height: 182 + (scale - 1).clamp(0, 0.5) * 120,
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF4FCF8), Color(0xFFFCFDFB)],
+        ),
+        border: Border.all(color: FubaoColors.borderMint),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            flex: 5,
+            child: FubaoIllustrationAsset(FubaoIllustration.spark),
           ),
-          border: Border.all(color: FubaoColors.borderMint),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Row(
-          children: [
-            const Expanded(
-              flex: 5,
-              child: FubaoIllustrationAsset(FubaoIllustration.spark),
+          Expanded(
+            flex: 6,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$days',
+                    style: const TextStyle(
+                        color: FubaoColors.mintStrong,
+                        fontSize: 56,
+                        height: 1,
+                        fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                Text('已连续互动 $days 天',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                const Text('每天一点点，一起更健康',
+                    style:
+                        TextStyle(color: FubaoColors.inkMuted, fontSize: 13)),
+              ],
             ),
-            Expanded(
-              flex: 6,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('$days',
-                      style: const TextStyle(
-                          color: FubaoColors.mintStrong,
-                          fontSize: 56,
-                          height: 1,
-                          fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 8),
-                  Text('已连续互动 $days 天',
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 8),
-                  const Text('每天一点点，一起更健康',
-                      style:
-                          TextStyle(color: FubaoColors.inkMuted, fontSize: 13)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _TaskProgressCard extends StatelessWidget {
@@ -310,56 +313,59 @@ class _BloodPressureCard extends StatelessWidget {
   final HealthReading? reading;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => FubaoCard(
-        onTap: onTap,
-        padding: const EdgeInsets.all(14),
-        child: SizedBox(
-          height: 140,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(children: [
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    return FubaoCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: SizedBox(
+        height: 140 + (scale - 1).clamp(0, 0.5) * 200,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              Expanded(
+                  child: Text('血压',
+                      style: TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w800))),
+              _StatusPill('稳定'),
+            ]),
+            const SizedBox(height: 8),
+            Text(
+                reading == null
+                    ? '--/--'
+                    : '${reading!.value['systolic']}/${reading!.value['diastolic']}',
+                style: const TextStyle(
+                    color: FubaoColors.mintStrong,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900)),
+            const Text('mmHg',
+                style: TextStyle(color: FubaoColors.mintStrong, fontSize: 12)),
+            const Spacer(),
+            Row(
+              children: [
+                const Icon(
+                  Icons.access_time_rounded,
+                  size: 13,
+                  color: FubaoColors.inkMuted,
+                ),
+                const SizedBox(width: 5),
                 Expanded(
-                    child: Text('血压',
-                        style: TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w800))),
-                _StatusPill('稳定'),
-              ]),
-              const SizedBox(height: 8),
-              Text(
-                  reading == null
-                      ? '--/--'
-                      : '${reading!.value['systolic']}/${reading!.value['diastolic']}',
-                  style: const TextStyle(
-                      color: FubaoColors.mintStrong,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w900)),
-              const Text('mmHg',
-                  style:
-                      TextStyle(color: FubaoColors.mintStrong, fontSize: 12)),
-              const Spacer(),
-              const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.access_time_rounded,
-                    size: 13,
-                    color: FubaoColors.inkMuted,
+                  child: Text(
+                    _readingTimeLabel(reading?.recordedAt),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: FubaoColors.inkMuted, fontSize: 12),
                   ),
-                  SizedBox(width: 5),
-                  Text(
-                    '今天 08:30',
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.fade,
-                    style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _MoodCard extends StatelessWidget {
@@ -367,37 +373,40 @@ class _MoodCard extends StatelessWidget {
   final HealthReading? reading;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => FubaoCard(
-        onTap: onTap,
-        padding: const EdgeInsets.all(14),
-        child: SizedBox(
-          height: 140,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                const Expanded(
-                    child: Text('今日心情',
-                        style: TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w800))),
-                _StatusPill(reading?.value['text']?.toString() ?? '未记录',
-                    filled: reading != null),
-              ]),
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    return FubaoCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: SizedBox(
+        height: 140 + (scale - 1).clamp(0, 0.5) * 200,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
               const Expanded(
-                  child: Center(
-                      child: FubaoIllustrationAsset(FubaoIllustration.mood,
-                          width: 72, height: 72))),
-              const Text(
-                '谢谢你分享心情！',
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.fade,
-                style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12),
-              ),
-            ],
-          ),
+                  child: Text('今日心情',
+                      style: TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w800))),
+              _StatusPill(reading?.value['text']?.toString() ?? '未记录',
+                  filled: reading != null),
+            ]),
+            const Expanded(
+                child: Center(
+                    child: FubaoIllustrationAsset(FubaoIllustration.mood,
+                        width: 72, height: 72))),
+            const Text(
+              '谢谢你分享心情！',
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.fade,
+              style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _StatusPill extends StatelessWidget {
@@ -470,4 +479,16 @@ class _ConversationPrompt {
   final String category;
   final String text;
   final String shareText;
+}
+
+String _readingTimeLabel(DateTime? value) {
+  if (value == null) return '今天暂无记录';
+  final local = value.toLocal();
+  final now = DateTime.now();
+  final sameDay = local.year == now.year &&
+      local.month == now.month &&
+      local.day == now.day;
+  final time =
+      '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  return sameDay ? '今天 $time' : '${local.month}月${local.day}日 $time';
 }

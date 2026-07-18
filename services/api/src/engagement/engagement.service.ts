@@ -259,6 +259,7 @@ export class EngagementService implements OnModuleInit, OnModuleDestroy {
     ];
   }
   private defaultMessages(familyId: string, userId: string) { return [
+    { familyId, userId, type: 'system' as const, title: '欢迎使用福豹', body: '家庭、健康档案和设备已准备好，可以开始今天的关怀计划。' },
     { familyId, userId, type: 'weeklyReport' as const, title: '本周健康周报已生成', body: '看看本周任务完成与健康记录变化。' },
     { familyId, userId, type: 'insight' as const, title: '健康小知识', body: '规律记录比单次数字更有参考价值。' },
   ]; }

@@ -37,7 +37,8 @@ void main() {
     expect(find.text('已完成'), findsOneWidget);
   });
 
-  testWidgets('child account settings logout returns to role login', (tester) async {
+  testWidgets('child account settings logout returns to role login',
+      (tester) async {
     await tester.pumpWidget(const FubaoApp());
     await tester.tap(find.text('我是子女'));
     await tester.pumpAndSettle();
@@ -63,7 +64,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('我的').last);
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('退出登录'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(find.text('退出登录'), 300,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('退出家庭组'), findsOneWidget);
     await tester.tap(find.text('退出登录'));
     await tester.pumpAndSettle();

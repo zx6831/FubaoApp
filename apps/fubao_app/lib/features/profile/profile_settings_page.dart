@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/fubao_repository.dart';
+import '../../data/accessibility_settings.dart';
 import '../../data/notification_permission_service.dart';
 import '../../design/fubao_colors.dart';
 import '../../widgets/fubao_widgets.dart';
@@ -40,19 +41,41 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   bool enabled = true;
   bool dnd = true;
   double value = 60;
+  double speechRate = 50;
+  bool deviceOnline = true;
   bool busy = false;
+  bool loadingData = false;
+  String? dataError;
+  Map<String, dynamic> familyData = const {};
+  Map<String, dynamic> healthData = const {};
+  Map<String, dynamic> deviceData = const {};
+  bool accessibilityInitialized = false;
   final feedbackController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     if (widget.kind == ProfileSettingKind.notifications) enabled = false;
+    _loadData();
   }
 
   @override
   void dispose() {
     feedbackController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (accessibilityInitialized) return;
+    final settings = AccessibilitySettingsScope.maybeOf(context);
+    if (widget.kind == ProfileSettingKind.font) {
+      value = (settings?.textScale ?? 1) * 100;
+    } else if (widget.kind == ProfileSettingKind.reading) {
+      value = (settings?.speechRate ?? 0.5) * 100;
+    }
+    accessibilityInitialized = true;
   }
 
   String get title => switch (widget.kind) {
@@ -77,123 +100,450 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         ),
       );
 
-  List<Widget> _content(BuildContext context) => switch (widget.kind) {
-        ProfileSettingKind.family => [
-            _member('小雨', '子女主账号', Icons.favorite_rounded),
-            const SizedBox(height: 12),
-            _member('王阿姨', '长辈账号', Icons.wb_sunny_rounded),
-          ],
-        ProfileSettingKind.health => [
-            _info('称呼', '妈妈'),
-            _info('慢病类型', '高血压'),
-            _info('身高 / 体重', '162 cm / 58.5 kg'),
-            _info('档案授权', '已确认'),
-          ],
-        ProfileSettingKind.device => [
-            _info('福豹家庭智能体', '在线 · 固件 1.0.0'),
-            const SizedBox(height: 18),
-            Text('设备音量 ${value.round()}%',
-                style: Theme.of(context).textTheme.titleMedium),
-            Slider(
-                value: value,
-                min: 0,
-                max: 100,
-                onChanged: (next) => setState(() => value = next)),
-            SwitchListTile(
-                value: enabled,
-                onChanged: (next) => setState(() => enabled = next),
-                title: const Text('设备语音提醒')),
-          ],
-        ProfileSettingKind.notifications => _notificationSwitches(),
-        ProfileSettingKind.reminder => [
-            ..._switches('每日任务提醒'),
-            SwitchListTile(
-                value: dnd,
-                onChanged: (next) => setState(() => dnd = next),
-                title: const Text('勿扰时段'),
-                subtitle: const Text('22:00 至次日 07:00')),
-          ],
-        ProfileSettingKind.privacy => [
-            _info('健康数据', '仅家庭成员可查看'),
-            _info('手机号', '已加密保存'),
-            _info('设备数据', '解绑后保留 90 天'),
-            const SizedBox(height: 18),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
-              ),
-              icon: const Icon(Icons.policy_outlined),
-              label: const Text('查看隐私政策'),
-            ),
+  List<Widget> _content(BuildContext context) {
+    if (loadingData) {
+      return const [
+        SizedBox(height: 160),
+        Center(child: CircularProgressIndicator()),
+      ];
+    }
+    if (dataError != null) {
+      return [
+        FubaoCard(
+          child: Column(children: [
+            const Icon(Icons.cloud_off_rounded,
+                color: FubaoColors.orangeStrong, size: 36),
             const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: busy ? null : _exportData,
-              icon: const Icon(Icons.download_rounded),
-              label: const Text('导出我的数据'),
-            ),
+            Text(dataError!, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton.tonalIcon(
-              style: FilledButton.styleFrom(
-                foregroundColor: FubaoColors.orangeStrong,
-              ),
-              onPressed: busy ? null : _scheduleDeletion,
-              icon: const Icon(Icons.person_remove_outlined),
-              label: const Text('申请注销账号'),
+            FilledButton(onPressed: _loadData, child: const Text('重新加载')),
+          ]),
+        ),
+      ];
+    }
+    return switch (widget.kind) {
+      ProfileSettingKind.family => _familyContent(),
+      ProfileSettingKind.health => _healthContent(),
+      ProfileSettingKind.device => _deviceContent(context),
+      ProfileSettingKind.notifications => _notificationSwitches(),
+      ProfileSettingKind.reminder => [
+          ..._switches('每日任务提醒'),
+          SwitchListTile(
+              value: dnd,
+              onChanged: (next) => setState(() => dnd = next),
+              title: const Text('勿扰时段'),
+              subtitle: const Text('22:00 至次日 07:00')),
+        ],
+      ProfileSettingKind.privacy => [
+          _info('健康数据', '仅家庭成员可查看'),
+          _info('手机号', '已加密保存'),
+          _info('设备数据', '解绑后保留 90 天'),
+          const SizedBox(height: 18),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              '注销申请提交后进入 30 天删除队列；退出登录或退出家庭组不会删除账号。',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12),
+            icon: const Icon(Icons.policy_outlined),
+            label: const Text('查看隐私政策'),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TermsOfServicePage()),
             ),
-          ],
-        ProfileSettingKind.help => [
-            _info('常见问题', '登录、家庭绑定、任务和设备使用说明'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: feedbackController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: '告诉我们遇到的问题',
-                border: OutlineInputBorder(),
-              ),
+            icon: const Icon(Icons.description_outlined),
+            label: const Text('查看用户服务协议'),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: busy ? null : _exportData,
+            icon: const Icon(Icons.download_rounded),
+            label: const Text('导出我的数据'),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.tonalIcon(
+            style: FilledButton.styleFrom(
+              foregroundColor: FubaoColors.orangeStrong,
             ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: busy ? null : _submitFeedback,
-              child: const Text('提交反馈'),
+            onPressed: busy ? null : _scheduleDeletion,
+            icon: const Icon(Icons.person_remove_outlined),
+            label: const Text('申请注销账号'),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '注销申请提交后进入 30 天删除队列；退出登录或退出家庭组不会删除账号。',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12),
+          ),
+        ],
+      ProfileSettingKind.help => [
+          _info('常见问题', '登录、家庭绑定、任务和设备使用说明'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: feedbackController,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: '告诉我们遇到的问题',
+              border: OutlineInputBorder(),
             ),
-          ],
-        ProfileSettingKind.font => [
-            Text('文字大小示例',
-                style: TextStyle(
-                    fontSize: 18 + value / 8, fontWeight: FontWeight.w700)),
-            Slider(
-                value: value,
-                min: 20,
-                max: 100,
-                onChanged: (next) => setState(() => value = next)),
-          ],
-        ProfileSettingKind.reading => [
-            Text('朗读速度 ${value.round()}%'),
-            Slider(
-                value: value,
-                min: 0,
-                max: 100,
-                onChanged: (next) => setState(() => value = next)),
-            const SizedBox(height: 12),
-            const ReadAloudButton(text: '这是一段福豹朗读设置的试听内容。'),
-          ],
-        ProfileSettingKind.contact => [
-            _member('小雨', '子女 · 已绑定', Icons.phone_rounded),
-            const SizedBox(height: 18),
-            FilledButton.icon(
-                onPressed: () => _notice('调试环境未配置系统拨号权限。'),
-                icon: const Icon(Icons.phone_rounded),
-                label: const Text('联系小雨')),
-          ],
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: busy ? null : _submitFeedback,
+            child: const Text('提交反馈'),
+          ),
+        ],
+      ProfileSettingKind.font => [
+          const Text('文字大小示例',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          Text('当前 ${value.round()}%',
+              style: const TextStyle(color: FubaoColors.inkMuted)),
+          Slider(
+              value: value,
+              min: 90,
+              max: 140,
+              divisions: 10,
+              onChanged: (next) {
+                setState(() => value = next);
+                AccessibilitySettingsScope.maybeOf(context)
+                    ?.setTextScale(next / 100);
+              }),
+        ],
+      ProfileSettingKind.reading => [
+          Text('朗读速度 ${value.round()}%'),
+          Slider(
+              value: value,
+              min: 30,
+              max: 80,
+              divisions: 10,
+              onChanged: (next) {
+                setState(() => value = next);
+                AccessibilitySettingsScope.maybeOf(context)
+                    ?.setSpeechRate(next / 100);
+              }),
+          const SizedBox(height: 12),
+          ReadAloudButton(
+            text: '这是一段福豹朗读设置的试听内容。',
+            rate: value / 100,
+          ),
+        ],
+      ProfileSettingKind.contact => _contactContent(),
+    };
+  }
+
+  bool get _loadsRepositoryData => switch (widget.kind) {
+        ProfileSettingKind.family ||
+        ProfileSettingKind.health ||
+        ProfileSettingKind.device ||
+        ProfileSettingKind.contact =>
+          true,
+        _ => false,
       };
+
+  Future<void> _loadData() async {
+    if (!_loadsRepositoryData || widget.repository == null) return;
+    setState(() {
+      loadingData = true;
+      dataError = null;
+    });
+    try {
+      switch (widget.kind) {
+        case ProfileSettingKind.family:
+        case ProfileSettingKind.contact:
+          familyData = await widget.repository!.familyDetails();
+          break;
+        case ProfileSettingKind.health:
+          healthData = await widget.repository!.elderHealthProfile();
+          break;
+        case ProfileSettingKind.device:
+          deviceData = await widget.repository!.currentDevice();
+          final settings =
+              (deviceData['settings'] as Map?)?.cast<String, dynamic>() ??
+                  const {};
+          value = (settings['volume'] as num?)?.toDouble() ?? 60;
+          speechRate = (settings['speechRate'] as num?)?.toDouble() ?? 50;
+          dnd = settings['dndEnabled'] != false;
+          deviceOnline = deviceData['status'] == 'online';
+          break;
+        default:
+          break;
+      }
+    } catch (error) {
+      dataError = '加载失败：$error';
+    } finally {
+      if (mounted) setState(() => loadingData = false);
+    }
+  }
+
+  List<Widget> _familyContent() {
+    final members = (familyData['members'] as List? ?? const [])
+        .whereType<Map>()
+        .map((item) => item.cast<String, dynamic>())
+        .toList();
+    if (members.isEmpty) return [_info('家庭成员', '暂无已绑定成员')];
+    return [
+      for (var index = 0; index < members.length; index++) ...[
+        _member(
+          members[index]['nickname']?.toString() ?? '家庭成员',
+          members[index]['role'] == 'child' ? '子女主账号' : '长辈账号',
+          members[index]['role'] == 'child'
+              ? Icons.favorite_rounded
+              : Icons.wb_sunny_rounded,
+        ),
+        if (index != members.length - 1) const SizedBox(height: 12),
+      ],
+    ];
+  }
+
+  List<Widget> _healthContent() {
+    final conditions = (healthData['chronicConditions'] as List? ?? const [])
+        .map((item) => item.toString())
+        .join('、');
+    final height = healthData['heightCm'];
+    final weight = healthData['weightKg'];
+    return [
+      _info('称呼', healthData['relativeName']?.toString() ?? '--'),
+      _info('慢病类型', conditions.isEmpty ? '未填写' : conditions),
+      _info('身高 / 体重', '${height ?? '--'} cm / ${weight ?? '--'} kg'),
+      _info('紧急联系人', healthData['emergencyContact']?.toString() ?? '未填写'),
+      _info('档案授权', healthData['consentAt'] == null ? '未确认' : '已确认'),
+      if (!widget.elder) ...[
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: busy ? null : _editHealthProfile,
+          icon: const Icon(Icons.edit_note_rounded),
+          label: const Text('编辑健康档案'),
+        ),
+      ],
+    ];
+  }
+
+  List<Widget> _deviceContent(BuildContext context) => [
+        _info(
+          deviceData['serialNumber']?.toString() ?? '福豹家庭智能体',
+          '${_deviceStatusLabel(deviceData['status']?.toString())} · 固件 ${deviceData['firmware'] ?? '--'}',
+        ),
+        const SizedBox(height: 18),
+        Text('设备音量 ${value.round()}%',
+            style: Theme.of(context).textTheme.titleMedium),
+        Slider(
+          value: value,
+          min: 0,
+          max: 100,
+          onChanged: busy ? null : (next) => setState(() => value = next),
+          onChangeEnd: busy ? null : (_) => _saveDeviceSettings(),
+        ),
+        Text('朗读速度 ${speechRate.round()}%',
+            style: Theme.of(context).textTheme.titleMedium),
+        Slider(
+          value: speechRate,
+          min: 0,
+          max: 100,
+          onChanged: busy ? null : (next) => setState(() => speechRate = next),
+          onChangeEnd: busy ? null : (_) => _saveDeviceSettings(),
+        ),
+        SwitchListTile(
+          value: deviceOnline,
+          onChanged: busy ? null : _setDeviceOnline,
+          title: const Text('模拟设备在线'),
+        ),
+        SwitchListTile(
+          value: dnd,
+          onChanged: busy
+              ? null
+              : (next) {
+                  setState(() => dnd = next);
+                  _saveDeviceSettings();
+                },
+          title: const Text('勿扰时段'),
+          subtitle: const Text('22:00 至次日 07:00'),
+        ),
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          onPressed: busy ? null : _factoryResetDevice,
+          icon: const Icon(Icons.restart_alt_rounded),
+          label: const Text('模拟恢复出厂设置'),
+        ),
+        const SizedBox(height: 10),
+        FilledButton.tonalIcon(
+          style:
+              FilledButton.styleFrom(foregroundColor: FubaoColors.orangeStrong),
+          onPressed: busy ? null : _unbindDevice,
+          icon: const Icon(Icons.link_off_rounded),
+          label: const Text('解绑设备'),
+        ),
+        const SizedBox(height: 8),
+        const Text('解绑后健康数据保留 90 天；恢复出厂会清除设备配置。',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12)),
+      ];
+
+  List<Widget> _contactContent() {
+    final members = (familyData['members'] as List? ?? const [])
+        .whereType<Map>()
+        .map((item) => item.cast<String, dynamic>())
+        .toList();
+    final targetRole = widget.elder ? 'child' : 'elder';
+    Map<String, dynamic>? target;
+    for (final member in members) {
+      if (member['role'] == targetRole) {
+        target = member;
+        break;
+      }
+    }
+    final name = target?['nickname']?.toString() ?? '家人';
+    return [
+      _member(name, '${widget.elder ? '子女' : '长辈'} · 已绑定', Icons.phone_rounded),
+      const SizedBox(height: 18),
+      FilledButton.icon(
+        onPressed: () => _notice('已复制 $name 的联系提示；真机拨号需在 iOS 权限配置后启用。'),
+        icon: const Icon(Icons.phone_rounded),
+        label: Text('联系$name'),
+      ),
+    ];
+  }
+
+  String _deviceStatusLabel(String? status) => switch (status) {
+        'online' => '在线',
+        'offline' => '离线',
+        'unbound' => '已解绑',
+        'discovered' => '待激活',
+        _ => '状态未知',
+      };
+
+  Future<void> _saveDeviceSettings() async {
+    if (widget.repository == null || busy) return;
+    setState(() => busy = true);
+    try {
+      final settings = await widget.repository!.updateDeviceSettings({
+        'volume': value.round(),
+        'speechRate': speechRate.round(),
+        'dndEnabled': dnd,
+        'dndStart': '22:00',
+        'dndEnd': '07:00',
+      });
+      deviceData = {...deviceData, 'settings': settings};
+    } catch (error) {
+      if (mounted) _notice('设备设置保存失败：$error');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _editHealthProfile() async {
+    if (widget.repository == null) return;
+    final edited = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => _HealthProfileEditDialog(initial: healthData),
+    );
+    if (edited == null) return;
+    setState(() => busy = true);
+    try {
+      healthData = await widget.repository!.updateElderHealthProfile({
+        ...edited,
+        'medicationHistory':
+            healthData['medicationHistory'] ?? <String, dynamic>{},
+        'medicalHistory': healthData['medicalHistory'] ?? <String, dynamic>{},
+        'consentConfirmed': true,
+      });
+      if (mounted) _notice('健康档案已更新。');
+    } catch (error) {
+      if (mounted) _notice('健康档案保存失败：$error');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _setDeviceOnline(bool next) async {
+    if (widget.repository == null) return;
+    setState(() => busy = true);
+    try {
+      deviceData = await widget.repository!.setDeviceOnline(next);
+      if (mounted) setState(() => deviceOnline = next);
+    } catch (error) {
+      if (mounted) _notice('设备状态更新失败：$error');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _factoryResetDevice() async {
+    if (widget.repository == null) return;
+    final confirmed = await _confirm(
+      title: '恢复出厂设置？',
+      content: '模拟设备会回到待激活状态，音量、朗读速度和勿扰设置恢复默认值。',
+      action: '确认恢复',
+    );
+    if (!confirmed) return;
+    setState(() => busy = true);
+    try {
+      deviceData = await widget.repository!.factoryResetDevice();
+      final settings =
+          (deviceData['settings'] as Map?)?.cast<String, dynamic>() ?? const {};
+      value = (settings['volume'] as num?)?.toDouble() ?? 60;
+      speechRate = (settings['speechRate'] as num?)?.toDouble() ?? 50;
+      dnd = settings['dndEnabled'] != false;
+      deviceOnline = false;
+      if (mounted) _notice('设备已恢复出厂设置，请重新发现并激活。');
+    } catch (error) {
+      if (mounted) _notice('恢复失败：$error');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _unbindDevice() async {
+    if (widget.repository == null) return;
+    final confirmed = await _confirm(
+      title: '解绑设备？',
+      content: '设备将停止同步，已有健康数据保留 90 天。此操作不会退出家庭组。',
+      action: '确认解绑',
+    );
+    if (!confirmed) return;
+    setState(() => busy = true);
+    try {
+      final result = await widget.repository!.unbindDevice();
+      deviceData = {...deviceData, 'status': 'unbound'};
+      deviceOnline = false;
+      final retainUntil =
+          DateTime.tryParse(result['dataRetainedUntil']?.toString() ?? '');
+      if (mounted) {
+        _notice(retainUntil == null
+            ? '设备已解绑，健康数据将保留 90 天。'
+            : '设备已解绑，数据保留至 ${retainUntil.year}年${retainUntil.month}月${retainUntil.day}日。');
+      }
+    } catch (error) {
+      if (mounted) _notice('解绑失败：$error');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<bool> _confirm({
+    required String title,
+    required String content,
+    required String action,
+  }) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(action),
+            ),
+          ],
+        ),
+      ) ??
+      false;
 
   List<Widget> _switches(String firstTitle) => [
         SwitchListTile(
@@ -361,6 +711,125 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   }
 }
 
+class _HealthProfileEditDialog extends StatefulWidget {
+  const _HealthProfileEditDialog({required this.initial});
+  final Map<String, dynamic> initial;
+
+  @override
+  State<_HealthProfileEditDialog> createState() =>
+      _HealthProfileEditDialogState();
+}
+
+class _HealthProfileEditDialogState extends State<_HealthProfileEditDialog> {
+  late final TextEditingController nameController;
+  late final TextEditingController heightController;
+  late final TextEditingController weightController;
+  late final TextEditingController conditionsController;
+  late final TextEditingController contactController;
+  String? errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    nameController = TextEditingController(
+        text: widget.initial['relativeName']?.toString() ?? '');
+    heightController = TextEditingController(
+        text: widget.initial['heightCm']?.toString() ?? '');
+    weightController = TextEditingController(
+        text: widget.initial['weightKg']?.toString() ?? '');
+    conditionsController = TextEditingController(
+      text:
+          (widget.initial['chronicConditions'] as List? ?? const []).join('、'),
+    );
+    contactController = TextEditingController(
+        text: widget.initial['emergencyContact']?.toString() ?? '');
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    heightController.dispose();
+    weightController.dispose();
+    conditionsController.dispose();
+    contactController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('编辑健康档案'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: '称呼'),
+            ),
+            TextField(
+              controller: heightController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: '身高（cm）'),
+            ),
+            TextField(
+              controller: weightController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: '体重（kg）'),
+            ),
+            TextField(
+              controller: conditionsController,
+              decoration: const InputDecoration(
+                  labelText: '慢病类型', hintText: '多个项目用逗号分隔'),
+            ),
+            TextField(
+              controller: contactController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: '紧急联系人'),
+            ),
+            if (errorText != null) ...[
+              const SizedBox(height: 8),
+              Text(errorText!,
+                  style: const TextStyle(color: FubaoColors.orangeStrong)),
+            ],
+          ]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(onPressed: _submit, child: const Text('保存')),
+        ],
+      );
+
+  void _submit() {
+    final name = nameController.text.trim();
+    final height = double.tryParse(heightController.text.trim());
+    final weight = double.tryParse(weightController.text.trim());
+    if (name.isEmpty ||
+        height == null ||
+        height < 80 ||
+        height > 250 ||
+        weight == null ||
+        weight < 20 ||
+        weight > 300) {
+      setState(() => errorText = '请填写称呼，以及有效的身高和体重。');
+      return;
+    }
+    final conditions = conditionsController.text
+        .split(RegExp(r'[,，、]'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    Navigator.pop(context, {
+      'relativeName': name,
+      'heightCm': height,
+      'weightKg': weight,
+      'chronicConditions': conditions,
+      if (contactController.text.trim().isNotEmpty)
+        'emergencyContact': contactController.text.trim(),
+    });
+  }
+}
+
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
 
@@ -395,6 +864,43 @@ class PrivacyPolicyPage extends StatelessWidget {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
             SizedBox(height: 8),
             Text('福豹提供健康管理与关怀提醒，不提供诊断和治疗，不能替代医生的专业建议。'),
+          ],
+        ),
+      );
+}
+
+class TermsOfServicePage extends StatelessWidget {
+  const TermsOfServicePage({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('福豹用户服务协议'), centerTitle: true),
+        body: ListView(
+          padding: const EdgeInsets.all(20),
+          children: const [
+            Text('生效日期：2026 年 7 月 18 日',
+                style: TextStyle(color: FubaoColors.inkMuted)),
+            SizedBox(height: 18),
+            Text('服务说明',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8),
+            Text('福豹为家庭成员提供健康计划、记录、提醒、话题和设备管理工具。服务内容可能随版本更新，以应用内实际功能为准。'),
+            SizedBox(height: 18),
+            Text('账号与家庭关系',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8),
+            Text(
+                '用户应使用本人手机号登录并妥善保管验证码。家庭邀请码仅用于获得授权的家庭成员绑定，不得转发给无关人员。退出登录、退出家庭组和注销账号是不同操作。'),
+            SizedBox(height: 18),
+            Text('健康信息提示',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8),
+            Text('福豹不提供医疗诊断、处方或急救服务。健康数据异常时应及时咨询医生；紧急情况请立即联系当地急救机构。'),
+            SizedBox(height: 18),
+            Text('用户责任',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8),
+            Text('用户应确保录入信息真实、获得长辈授权并合理使用提醒功能，不得利用服务侵害他人权益或干扰系统安全。'),
           ],
         ),
       );

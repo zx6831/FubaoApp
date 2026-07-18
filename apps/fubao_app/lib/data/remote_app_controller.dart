@@ -34,7 +34,8 @@ class RemoteAppController extends ChangeNotifier {
 
   Future<bool> requestCode(String phone) async {
     return _run(() async {
-      final data = await api.post('auth/request-code', body: {'phone': phone}, authenticated: false);
+      final data = await api.post('auth/request-code',
+          body: {'phone': phone}, authenticated: false);
       testCode = data['testCode'] as String?;
     });
   }
@@ -97,12 +98,15 @@ class RemoteAppController extends ChangeNotifier {
   Future<bool> discoverDevice() => _run(() async {
         final result = await api.post('devices/discover');
         final devices = result['devices'] as List;
-        discoveredDeviceSerial = (devices.first as Map)['serialNumber'] as String;
+        discoveredDeviceSerial =
+            (devices.first as Map)['serialNumber'] as String;
         state = RemoteFlowState.onboarding;
       });
 
   Future<bool> activateDevice(String networkName) => _run(() async {
-        if (discoveredDeviceSerial == null) throw const ApiException(400, '请先发现设备');
+        if (discoveredDeviceSerial == null) {
+          throw const ApiException(400, '请先发现设备');
+        }
         await api.post('devices/activate', body: {
           'serialNumber': discoveredDeviceSerial,
           'networkName': networkName,
@@ -139,7 +143,8 @@ class RemoteAppController extends ChangeNotifier {
     try {
       final family = await api.get('families/current');
       final members = (family['members'] as List?) ?? const [];
-      final hasElder = members.whereType<Map>().any((member) => member['role'] == 'elder');
+      final hasElder =
+          members.whereType<Map>().any((member) => member['role'] == 'elder');
       if (role == AppRole.child && !hasElder) {
         state = RemoteFlowState.familySetup;
       } else {

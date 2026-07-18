@@ -19,15 +19,18 @@ void main() {
 
   Map<String, dynamic> sessionJson(String access, String refresh) => {
         'accessToken': access,
-        'accessTokenExpiresAt': DateTime.now().add(const Duration(minutes: 15)).toIso8601String(),
+        'accessTokenExpiresAt':
+            DateTime.now().add(const Duration(minutes: 15)).toIso8601String(),
         'refreshToken': refresh,
-        'refreshTokenExpiresAt': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
+        'refreshTokenExpiresAt':
+            DateTime.now().add(const Duration(days: 30)).toIso8601String(),
         'user': {'id': 'child-1', 'role': 'child', 'nickname': '小雨'},
       };
 
   test('restores the saved session and rotates tokens after a 401', () async {
     final store = MemorySessionStore()
-      ..value = AuthSession.fromJson(sessionJson('expired-access', 'refresh-1'));
+      ..value =
+          AuthSession.fromJson(sessionJson('expired-access', 'refresh-1'));
     var familyRequests = 0;
     String? seenRefreshToken;
     final client = RemoteApiClient(
@@ -35,16 +38,26 @@ void main() {
       sessionStore: store,
       httpClient: MockClient((request) async {
         if (request.url.path.endsWith('/auth/refresh')) {
-          seenRefreshToken = jsonDecode(request.body)['refreshToken'] as String?;
-          return jsonResponse({'code': 0, 'msg': 'success', 'data': sessionJson('fresh-access', 'refresh-2')}, 200);
+          seenRefreshToken =
+              jsonDecode(request.body)['refreshToken'] as String?;
+          return jsonResponse({
+            'code': 0,
+            'msg': 'success',
+            'data': sessionJson('fresh-access', 'refresh-2')
+          }, 200);
         }
         familyRequests++;
         if (familyRequests == 1) {
           expect(request.headers['Authorization'], 'Bearer expired-access');
-          return jsonResponse({'code': 401, 'msg': 'expired', 'data': null}, 401);
+          return jsonResponse(
+              {'code': 401, 'msg': 'expired', 'data': null}, 401);
         }
         expect(request.headers['Authorization'], 'Bearer fresh-access');
-        return jsonResponse({'code': 0, 'msg': 'success', 'data': {'id': 'family-1'}}, 200);
+        return jsonResponse({
+          'code': 0,
+          'msg': 'success',
+          'data': {'id': 'family-1'}
+        }, 200);
       }),
     );
 
@@ -105,7 +118,8 @@ void main() {
           }, 200)),
     );
     await client.restoreSession();
-    final controller = RemoteAppController(client)..state = RemoteFlowState.ready;
+    final controller = RemoteAppController(client)
+      ..state = RemoteFlowState.ready;
 
     expect(await controller.leaveFamily(), isTrue);
     expect(controller.state, RemoteFlowState.familySetup);

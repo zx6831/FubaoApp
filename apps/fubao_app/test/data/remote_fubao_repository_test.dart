@@ -259,6 +259,43 @@ void main() {
         if (request.url.path.endsWith('/privacy/account')) {
           return success({'deleteAfter': '2026-08-17T01:00:00.000Z'});
         }
+        if (request.url.path.endsWith('/families/current')) {
+          return success({
+            'id': 'family-1',
+            'members': [
+              {'userId': 'elder-1', 'role': 'elder', 'nickname': '王阿姨'}
+            ],
+          });
+        }
+        if (request.url.path.endsWith('/profiles/elder') &&
+            request.method == 'GET') {
+          return success({'relativeName': '妈妈'});
+        }
+        if (request.url.path.endsWith('/profiles/elder') &&
+            request.method == 'PUT') {
+          return success({
+            ...(jsonDecode(request.body) as Map).cast<String, dynamic>(),
+            'consentAt': '2026-07-18T02:00:00.000Z',
+          });
+        }
+        if (request.url.path.endsWith('/devices/current') &&
+            request.method == 'GET') {
+          return success({'id': 'device-1', 'status': 'online'});
+        }
+        if (request.url.path.endsWith('/devices/settings')) {
+          return success(
+              (jsonDecode(request.body) as Map).cast<String, dynamic>());
+        }
+        if (request.url.path.endsWith('/devices/status')) {
+          return success({'id': 'device-1', 'status': 'offline'});
+        }
+        if (request.url.path.endsWith('/devices/factory-reset')) {
+          return success({'id': 'device-1', 'status': 'discovered'});
+        }
+        if (request.url.path.endsWith('/devices/current') &&
+            request.method == 'DELETE') {
+          return success({'unbound': true});
+        }
         return success({'submitted': true});
       }),
     );
@@ -271,6 +308,32 @@ void main() {
     final deleteAfter = await repository.scheduleAccountDeletion();
     await repository.submitFeedback('希望增加语音提示');
     await repository.registerPushToken('a' * 64);
+    expect((await repository.familyDetails())['id'], 'family-1');
+    expect((await repository.elderHealthProfile())['relativeName'], '妈妈');
+    expect(
+      (await repository.updateElderHealthProfile({
+        'relativeName': '母亲',
+        'heightCm': 162,
+        'weightKg': 58.5,
+        'chronicConditions': ['高血压'],
+        'consentConfirmed': true,
+      }))['relativeName'],
+      '母亲',
+    );
+    expect((await repository.currentDevice())['status'], 'online');
+    expect(
+      (await repository.updateDeviceSettings({
+        'volume': 60,
+        'speechRate': 50,
+        'dndEnabled': true,
+        'dndStart': '22:00',
+        'dndEnd': '07:00',
+      }))['volume'],
+      60,
+    );
+    expect((await repository.setDeviceOnline(false))['status'], 'offline');
+    expect((await repository.factoryResetDevice())['status'], 'discovered');
+    await repository.unbindDevice();
 
     expect(exported['generatedAt'], isNotNull);
     expect(deleteAfter, DateTime.parse('2026-08-17T01:00:00.000Z'));
@@ -280,6 +343,13 @@ void main() {
     expect(requests, contains('DELETE /api/privacy/account'));
     expect(requests, contains('POST /api/feedback'));
     expect(requests, contains('POST /api/notifications/device-token'));
+    expect(requests, contains('GET /api/families/current'));
+    expect(requests, contains('GET /api/profiles/elder'));
+    expect(requests, contains('PUT /api/profiles/elder'));
+    expect(requests, contains('PATCH /api/devices/settings'));
+    expect(requests, contains('PATCH /api/devices/status'));
+    expect(requests, contains('POST /api/devices/factory-reset'));
+    expect(requests, contains('DELETE /api/devices/current'));
     repository.dispose();
     api.dispose();
   });

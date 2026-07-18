@@ -25,6 +25,7 @@ class HealthTask {
     this.isSkipped = false,
     this.recordedAt,
     this.recordData,
+    this.scheduledDate,
   });
 
   final String id;
@@ -37,12 +38,14 @@ class HealthTask {
   final bool isSkipped;
   final DateTime? recordedAt;
   final Map<String, dynamic>? recordData;
+  final DateTime? scheduledDate;
 
   HealthTask copyWith({
     bool? isCompleted,
     bool? isSkipped,
     DateTime? recordedAt,
     Map<String, dynamic>? recordData,
+    DateTime? scheduledDate,
   }) =>
       HealthTask(
         id: id,
@@ -55,6 +58,7 @@ class HealthTask {
         isSkipped: isSkipped ?? this.isSkipped,
         recordedAt: recordedAt ?? this.recordedAt,
         recordData: recordData ?? this.recordData,
+        scheduledDate: scheduledDate ?? this.scheduledDate,
       );
 }
 

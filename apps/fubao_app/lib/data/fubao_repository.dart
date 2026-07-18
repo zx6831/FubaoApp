@@ -59,5 +59,25 @@ abstract interface class FubaoRepository implements Listenable {
 
   Future<void> registerPushToken(String token);
 
+  Future<Map<String, dynamic>> familyDetails();
+
+  Future<Map<String, dynamic>> elderHealthProfile();
+
+  Future<Map<String, dynamic>> updateElderHealthProfile(
+    Map<String, dynamic> profile,
+  );
+
+  Future<Map<String, dynamic>> currentDevice();
+
+  Future<Map<String, dynamic>> updateDeviceSettings(
+    Map<String, dynamic> settings,
+  );
+
+  Future<Map<String, dynamic>> setDeviceOnline(bool online);
+
+  Future<Map<String, dynamic>> unbindDevice();
+
+  Future<Map<String, dynamic>> factoryResetDevice();
+
   void dispose();
 }

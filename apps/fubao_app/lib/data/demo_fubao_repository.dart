@@ -39,6 +39,32 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
         ];
 
   List<HealthTask> _tasks;
+  final Map<String, dynamic> _device = {
+    'id': 'demo-device',
+    'serialNumber': 'FB-DEMO-001',
+    'firmware': '1.0.0',
+    'status': 'online',
+    'lastOnlineAt': '2026-07-18T08:30:00.000Z',
+    'activatedAt': '2026-07-18T08:00:00.000Z',
+    'settings': {
+      'volume': 60,
+      'speechRate': 50,
+      'dndEnabled': true,
+      'dndStart': '22:00',
+      'dndEnd': '07:00',
+    },
+  };
+  final Map<String, dynamic> _healthProfile = {
+    'userId': 'demo-elder',
+    'relativeName': '妈妈',
+    'heightCm': 162,
+    'weightKg': 58.5,
+    'chronicConditions': const ['高血压'],
+    'medicationHistory': const <String, dynamic>{},
+    'medicalHistory': const <String, dynamic>{},
+    'emergencyContact': '138****0000',
+    'consentAt': '2026-07-18T08:00:00.000Z',
+  };
 
   @override
   List<HealthTask> get tasks => List.unmodifiable(_tasks);
@@ -133,8 +159,8 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
 
   @override
   WeeklyHealthReport get weeklyReport => WeeklyHealthReport(
-        from: DateTime(2026, 7, 12),
-        to: DateTime(2026, 7, 18),
+        from: DateTime(2026, 3, 31),
+        to: DateTime(2026, 4, 6),
         completed: completedTaskCount,
         total: tasks.length,
         completionRate: tasks.isEmpty ? 0 : completedTaskCount / tasks.length,
@@ -200,7 +226,24 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   }
 
   @override
-  Future<void> updatePlanStatus(String id, String status) async {}
+  Future<void> updatePlanStatus(String id, String status) async {
+    final index = plans.indexWhere((plan) => plan.id == id);
+    if (index == -1) return;
+    final plan = plans[index];
+    plans[index] = HealthPlan(
+      id: plan.id,
+      title: plan.title,
+      description: plan.description,
+      completed: plan.completed,
+      total: plan.total,
+      icon: plan.icon,
+      kind: plan.kind,
+      status: status,
+      reminderTime: plan.reminderTime,
+      daysOfWeek: plan.daysOfWeek,
+    );
+    notifyListeners();
+  }
 
   @override
   Future<bool> remindTask(String id) async => true;
@@ -226,7 +269,20 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
     String id,
     String status, {
     String? closeReason,
-  }) async {}
+  }) async {
+    final index = alerts.indexWhere((alert) => alert.id == id);
+    if (index == -1) return;
+    final alert = alerts[index];
+    alerts[index] = CareAlert(
+      id: alert.id,
+      level: alert.level,
+      metric: alert.metric,
+      message: alert.message,
+      status: status,
+      createdAt: alert.createdAt,
+    );
+    notifyListeners();
+  }
 
   @override
   Future<void> markTopicCopied(String id) async {}
@@ -267,4 +323,76 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
 
   @override
   Future<void> registerPushToken(String token) async {}
+
+  @override
+  Future<Map<String, dynamic>> familyDetails() async => {
+        'id': 'demo-family',
+        'ownerId': 'demo-child',
+        'members': const [
+          {'userId': 'demo-child', 'role': 'child', 'nickname': '小雨'},
+          {'userId': 'demo-elder', 'role': 'elder', 'nickname': '王阿姨'},
+        ],
+      };
+
+  @override
+  Future<Map<String, dynamic>> elderHealthProfile() async =>
+      Map<String, dynamic>.from(_healthProfile);
+
+  @override
+  Future<Map<String, dynamic>> updateElderHealthProfile(
+    Map<String, dynamic> profile,
+  ) async {
+    _healthProfile.addAll(profile);
+    _healthProfile['consentAt'] = DateTime.now().toIso8601String();
+    notifyListeners();
+    return Map<String, dynamic>.from(_healthProfile);
+  }
+
+  @override
+  Future<Map<String, dynamic>> currentDevice() async =>
+      Map<String, dynamic>.from(_device);
+
+  @override
+  Future<Map<String, dynamic>> updateDeviceSettings(
+    Map<String, dynamic> settings,
+  ) async {
+    _device['settings'] = Map<String, dynamic>.from(settings);
+    notifyListeners();
+    return Map<String, dynamic>.from(settings);
+  }
+
+  @override
+  Future<Map<String, dynamic>> setDeviceOnline(bool online) async {
+    _device['status'] = online ? 'online' : 'offline';
+    notifyListeners();
+    return Map<String, dynamic>.from(_device);
+  }
+
+  @override
+  Future<Map<String, dynamic>> unbindDevice() async {
+    _device['status'] = 'unbound';
+    notifyListeners();
+    return {
+      'unbound': true,
+      'dataRetainedUntil':
+          DateTime.now().add(const Duration(days: 90)).toIso8601String(),
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> factoryResetDevice() async {
+    _device
+      ..['status'] = 'discovered'
+      ..['activatedAt'] = null
+      ..['lastOnlineAt'] = null
+      ..['settings'] = {
+        'volume': 60,
+        'speechRate': 50,
+        'dndEnabled': true,
+        'dndStart': '22:00',
+        'dndEnd': '07:00',
+      };
+    notifyListeners();
+    return Map<String, dynamic>.from(_device);
+  }
 }

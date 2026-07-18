@@ -38,12 +38,10 @@ class ElderTopicsPage extends StatelessWidget {
               const SizedBox(height: 18),
               if (repository.allTasksCompleted) ...[
                 const _ElderTopicCard(
-                    image: FubaoIllustration.elderSun,
-                    title: '今天有什么开心的事？'),
+                    image: FubaoIllustration.elderSun, title: '今天有什么开心的事？'),
                 const SizedBox(height: 14),
                 const _ElderTopicCard(
-                    image: FubaoIllustration.elderPark,
-                    title: '下午散步时看到什么？'),
+                    image: FubaoIllustration.elderPark, title: '下午散步时看到什么？'),
               ] else
                 FubaoCard(
                   padding: const EdgeInsets.all(22),
