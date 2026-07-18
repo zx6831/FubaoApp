@@ -4,7 +4,7 @@
   "private": true,
   "description": "福豹 App 可部署调试后端",
   "scripts": {
-    "build": "npm run prisma:generate && nest build",
+    "build": "npm run prisma:generate && nest build && node -e \"require('node:fs').accessSync('dist/main.js')\"",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
