@@ -5,25 +5,52 @@ import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
 import '../../domain/models.dart';
 import '../../widgets/fubao_widgets.dart';
+import '../health/health_center_page.dart';
 import '../plans/task_history_page.dart';
 
-class ElderPlansPage extends StatelessWidget {
-  const ElderPlansPage({required this.repository, super.key});
+class ElderPlansPage extends StatefulWidget {
+  const ElderPlansPage({required this.repository, this.today, super.key});
   final FubaoRepository repository;
+  final DateTime? today;
+
+  @override
+  State<ElderPlansPage> createState() => _ElderPlansPageState();
+}
+
+class _ElderPlansPageState extends State<ElderPlansPage> {
+  List<HealthTask> history = const [];
+
+  DateTime get today {
+    final value = widget.today ?? DateTime.now();
+    return DateTime(value.year, value.month, value.day);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWeek();
+  }
+
+  Future<void> _loadWeek() async {
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    final result = await widget.repository.taskHistory(
+      monday,
+      monday.add(const Duration(days: 6)),
+    );
+    if (mounted) setState(() => history = result);
+  }
 
   @override
   Widget build(BuildContext context) => SafeArea(
         bottom: false,
         child: AnimatedBuilder(
-          animation: repository,
+          animation: widget.repository,
           builder: (context, _) {
-            final medicine = _primaryPlanTask(repository.tasks);
+            final medicine = _primaryPlanTask(widget.repository.tasks);
             final upcoming = medicine == null
                 ? const <HealthTask>[]
-                : repository.tasks
-                    .where((task) =>
-                        task.id != medicine.id &&
-                        task.kind != TaskKind.bloodPressure)
+                : widget.repository.tasks
+                    .where((task) => task.id != medicine.id)
                     .toList();
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
@@ -39,10 +66,13 @@ class ElderPlansPage extends StatelessWidget {
                     ]),
                 const SizedBox(height: 22),
                 _ElderWeekStrip(
+                  today: today,
+                  history: history,
+                  currentTasks: widget.repository.tasks,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => TaskHistoryPage(
-                        repository: repository,
+                        repository: widget.repository,
                         elder: true,
                       ),
                     ),
@@ -66,7 +96,11 @@ class ElderPlansPage extends StatelessWidget {
                     task: medicine,
                     illustration: FubaoIllustration.pill,
                     completed: medicine.isCompleted,
-                    onTap: () => repository.setTaskCompleted(medicine.id, true),
+                    onTap: () => _completePlanTask(
+                      context,
+                      widget.repository,
+                      medicine,
+                    ),
                   ),
                 const SizedBox(height: 22),
                 const Text('接下来的事',
@@ -78,8 +112,11 @@ class ElderPlansPage extends StatelessWidget {
                     task: upcoming[i],
                     illustration: _illustrationFor(upcoming[i].kind),
                     completed: upcoming[i].isCompleted,
-                    onTap: () =>
-                        repository.setTaskCompleted(upcoming[i].id, true),
+                    onTap: () => _completePlanTask(
+                      context,
+                      widget.repository,
+                      upcoming[i],
+                    ),
                   ),
                   if (i != upcoming.length - 1) const SizedBox(height: 12),
                 ],
@@ -107,55 +144,128 @@ FubaoIllustration _illustrationFor(TaskKind kind) => switch (kind) {
     };
 
 class _ElderWeekStrip extends StatelessWidget {
-  const _ElderWeekStrip({required this.onTap});
+  const _ElderWeekStrip({
+    required this.today,
+    required this.history,
+    required this.currentTasks,
+    required this.onTap,
+  });
+  final DateTime today;
+  final List<HealthTask> history;
+  final List<HealthTask> currentTasks;
   final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    const labels = ['一', '二', '今', '四', '五', '六', '日'];
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    final days = [for (var i = 0; i < 7; i++) monday.add(Duration(days: i))];
     return FubaoCard(
       onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        for (var i = 0; i < labels.length; i++)
-          Container(
-            padding: i == 2
-                ? const EdgeInsets.symmetric(horizontal: 9, vertical: 7)
-                : EdgeInsets.zero,
-            decoration: i == 2
-                ? BoxDecoration(
-                    color: const Color(0xFFF0FAF6),
-                    border: Border.all(color: FubaoColors.mint),
-                    borderRadius: BorderRadius.circular(22))
-                : null,
-            child: Column(children: [
-              Text(labels[i],
-                  style: TextStyle(
-                      color: i == 2 ? FubaoColors.mintStrong : FubaoColors.ink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(height: 10),
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                    color: i < 2
-                        ? FubaoColors.mintStrong
-                        : i == 2
-                            ? FubaoColors.mint
-                            : Colors.transparent,
-                    shape: BoxShape.circle,
-                    border: i > 2
-                        ? Border.all(color: const Color(0xFFBBBBBB), width: 1.5)
-                        : null),
-                child: i < 2
-                    ? const Icon(Icons.check_rounded,
-                        color: Colors.white, size: 20)
-                    : null,
+        for (final date in days)
+          Builder(builder: (context) {
+            final isToday = _sameDay(date, today);
+            final dayTasks = isToday
+                ? currentTasks
+                : history
+                    .where((task) =>
+                        task.scheduledDate != null &&
+                        _sameDay(task.scheduledDate!, date))
+                    .toList();
+            final completed = dayTasks.isNotEmpty &&
+                dayTasks.every((task) => task.isCompleted);
+            final hasTasks = dayTasks.isNotEmpty;
+            return KeyedSubtree(
+              key: Key('elder-week-day-${date.weekday}'),
+              child: _WeekDay(
+                label: isToday ? '今' : _weekdayLabel(date.weekday),
+                isToday: isToday,
+                hasTasks: hasTasks,
+                completed: completed,
               ),
-            ]),
-          ),
+            );
+          }),
       ]),
     );
+  }
+}
+
+class _WeekDay extends StatelessWidget {
+  const _WeekDay({
+    required this.label,
+    required this.isToday,
+    required this.hasTasks,
+    required this.completed,
+  });
+  final String label;
+  final bool isToday;
+  final bool hasTasks;
+  final bool completed;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: isToday
+            ? const EdgeInsets.symmetric(horizontal: 9, vertical: 7)
+            : EdgeInsets.zero,
+        decoration: isToday
+            ? BoxDecoration(
+                color: const Color(0xFFF0FAF6),
+                border: Border.all(color: FubaoColors.mint),
+                borderRadius: BorderRadius.circular(22),
+              )
+            : null,
+        child: Column(children: [
+          Text(label,
+              style: TextStyle(
+                  color: isToday ? FubaoColors.mintStrong : FubaoColors.ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: completed
+                  ? FubaoColors.mintStrong
+                  : isToday && hasTasks
+                      ? FubaoColors.mint
+                      : Colors.transparent,
+              shape: BoxShape.circle,
+              border: !completed && !(isToday && hasTasks)
+                  ? Border.all(color: const Color(0xFFBBBBBB), width: 1.5)
+                  : null,
+            ),
+            child: completed
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
+                : null,
+          ),
+        ]),
+      );
+}
+
+bool _sameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+String _weekdayLabel(int weekday) =>
+    const ['一', '二', '三', '四', '五', '六', '日'][weekday - 1];
+
+Future<void> _completePlanTask(
+  BuildContext context,
+  FubaoRepository repository,
+  HealthTask task,
+) async {
+  final metric = switch (task.kind) {
+    TaskKind.bloodPressure => HealthMetric.bloodPressure,
+    TaskKind.bloodGlucose => HealthMetric.bloodGlucose,
+    TaskKind.mood => HealthMetric.mood,
+    TaskKind.weight => HealthMetric.weight,
+    _ => null,
+  };
+  if (metric != null) {
+    await showHealthRecordDialog(context, repository, metric);
+  } else {
+    await repository.setTaskCompleted(task.id, true);
   }
 }
 

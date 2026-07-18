@@ -37,11 +37,27 @@ class ElderTopicsPage extends StatelessWidget {
                   : const _PendingHero(),
               const SizedBox(height: 18),
               if (repository.allTasksCompleted) ...[
-                const _ElderTopicCard(
-                    image: FubaoIllustration.elderSun, title: '今天有什么开心的事？'),
+                _ElderTopicCard(
+                    image: FubaoIllustration.elderSun,
+                    title: '今天有什么开心的事？',
+                    prompt: '和家人说说今天让你微笑的一件小事，也听听他们今天的好心情。',
+                    onTap: () => _openTopic(
+                          context,
+                          FubaoIllustration.elderSun,
+                          '今天有什么开心的事？',
+                          '和家人说说今天让你微笑的一件小事，也听听他们今天的好心情。',
+                        )),
                 const SizedBox(height: 14),
-                const _ElderTopicCard(
-                    image: FubaoIllustration.elderPark, title: '下午散步时看到什么？'),
+                _ElderTopicCard(
+                    image: FubaoIllustration.elderPark,
+                    title: '下午散步时看到什么？',
+                    prompt: '聊聊路边的风景、遇到的人，或者散步时身体和心情的感受。',
+                    onTap: () => _openTopic(
+                          context,
+                          FubaoIllustration.elderPark,
+                          '下午散步时看到什么？',
+                          '聊聊路边的风景、遇到的人，或者散步时身体和心情的感受。',
+                        )),
               ] else
                 FubaoCard(
                   padding: const EdgeInsets.all(22),
@@ -64,6 +80,21 @@ class ElderTopicsPage extends StatelessWidget {
           ),
         ),
       );
+
+  void _openTopic(
+    BuildContext context,
+    FubaoIllustration image,
+    String title,
+    String prompt,
+  ) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => ElderTopicDetailPage(
+        image: image,
+        title: title,
+        prompt: prompt,
+      ),
+    ));
+  }
 }
 
 class _PendingHero extends StatelessWidget {
@@ -127,11 +158,19 @@ class _CompletedHero extends StatelessWidget {
 }
 
 class _ElderTopicCard extends StatelessWidget {
-  const _ElderTopicCard({required this.image, required this.title});
+  const _ElderTopicCard({
+    required this.image,
+    required this.title,
+    required this.prompt,
+    required this.onTap,
+  });
   final FubaoIllustration image;
   final String title;
+  final String prompt;
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => FubaoCard(
+        onTap: onTap,
         padding: const EdgeInsets.all(18),
         child: Row(children: [
           FubaoIllustrationBubble(
@@ -151,5 +190,49 @@ class _ElderTopicCard extends StatelessWidget {
               child: Icon(Icons.chevron_right_rounded,
                   color: Colors.white, size: 38)),
         ]),
+      );
+}
+
+class ElderTopicDetailPage extends StatelessWidget {
+  const ElderTopicDetailPage({
+    required this.image,
+    required this.title,
+    required this.prompt,
+    super.key,
+  });
+  final FubaoIllustration image;
+  final String title;
+  final String prompt;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('话题详情'), centerTitle: true),
+        body: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            FubaoCard(
+              padding: const EdgeInsets.all(24),
+              child: Column(children: [
+                FubaoIllustrationBubble(illustration: image, size: 190),
+                const SizedBox(height: 22),
+                Text(title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 29,
+                        height: 1.35,
+                        fontWeight: FontWeight.w900)),
+                const SizedBox(height: 16),
+                Text(prompt,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: FubaoColors.inkMuted,
+                        fontSize: 20,
+                        height: 1.65)),
+                const SizedBox(height: 24),
+                ReadAloudButton(text: '$title。$prompt'),
+              ]),
+            ),
+          ],
+        ),
       );
 }

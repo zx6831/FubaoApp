@@ -13,10 +13,13 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
   RemoteFubaoRepository(
     this._api, {
     LocalDataStore? localStore,
-  }) : _localStore = localStore ?? MemoryLocalDataStore();
+    Duration pollInterval = const Duration(seconds: 5),
+  })  : _localStore = localStore ?? MemoryLocalDataStore(),
+        _pollInterval = pollInterval;
 
   final RemoteApiClient _api;
   final LocalDataStore _localStore;
+  final Duration _pollInterval;
   final List<HealthTask> _tasks = [];
   final List<HealthPlan> _plans = [];
   final List<CareTopic> _topics = [];
@@ -78,8 +81,7 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
   void start() {
     if (_poller != null) return;
     unawaited(_startWithCache());
-    _poller = Timer.periodic(
-        const Duration(seconds: 10), (_) => unawaited(refresh()));
+    _poller = Timer.periodic(_pollInterval, (_) => unawaited(refresh()));
   }
 
   Future<void> _startWithCache() async {
@@ -283,6 +285,15 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     HealthMetric metric,
     Map<String, dynamic> value,
   ) async {
+    HealthTask? matchingTask;
+    if (_api.session?.role == AppRole.elder) {
+      for (final task in _tasks) {
+        if (!task.isCompleted && task.kind == _taskKindForMetric(metric)) {
+          matchingTask = task;
+          break;
+        }
+      }
+    }
     await _api.post('health-data', body: {
       'type': metric.name,
       if (metric == HealthMetric.bloodPressure) ...{
@@ -294,7 +305,11 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
         'value': value['value'],
       'confirmedByUser': true,
     });
-    await refresh();
+    if (matchingTask != null) {
+      await setTaskCompleted(matchingTask.id, true);
+    } else {
+      await refresh();
+    }
   }
 
   @override
@@ -477,6 +492,13 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
         (kind) => kind.name == value,
         orElse: () => TaskKind.custom,
       );
+
+  TaskKind _taskKindForMetric(HealthMetric metric) => switch (metric) {
+        HealthMetric.bloodPressure => TaskKind.bloodPressure,
+        HealthMetric.bloodGlucose => TaskKind.bloodGlucose,
+        HealthMetric.mood => TaskKind.mood,
+        HealthMetric.weight => TaskKind.weight,
+      };
 
   IconData _icon(TaskKind kind) => switch (kind) {
         TaskKind.bloodPressure => Icons.monitor_heart_outlined,

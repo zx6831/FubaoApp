@@ -76,82 +76,138 @@ class HealthCenterPage extends StatelessWidget {
       );
 
   Future<void> _record(BuildContext context, HealthMetric metric) async {
-    final first = TextEditingController();
-    final second = TextEditingController();
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('记录${_label(metric)}'),
+    await showHealthRecordDialog(context, repository, metric);
+  }
+}
+
+Future<bool> showHealthRecordDialog(
+  BuildContext context,
+  FubaoRepository repository,
+  HealthMetric metric,
+) async {
+  final result = await showDialog<Map<String, dynamic>>(
+    context: context,
+    builder: (_) => _RecordHealthDialog(metric: metric),
+  );
+  if (result == null || !context.mounted) return false;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('确认本次记录'),
+      content: Text(_recordSummary(metric, result)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('返回修改'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('确认保存'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return false;
+  await repository.recordHealth(metric, result);
+  return true;
+}
+
+class _RecordHealthDialog extends StatefulWidget {
+  const _RecordHealthDialog({required this.metric});
+
+  final HealthMetric metric;
+
+  @override
+  State<_RecordHealthDialog> createState() => _RecordHealthDialogState();
+}
+
+class _RecordHealthDialogState extends State<_RecordHealthDialog> {
+  String primary = '';
+  String secondary = '';
+  String? errorText;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text('记录${_metricLabel(widget.metric)}'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-              controller: first,
-              keyboardType: metric == HealthMetric.mood
-                  ? TextInputType.text
-                  : TextInputType.number,
-              decoration: InputDecoration(labelText: _firstLabel(metric))),
-          if (metric == HealthMetric.bloodPressure) ...[
+          TextFormField(
+            key: const Key('record-primary-value'),
+            initialValue: primary,
+            autofocus: true,
+            keyboardType: widget.metric == HealthMetric.mood
+                ? TextInputType.text
+                : const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: _firstFieldLabel(widget.metric),
+              errorText: errorText,
+            ),
+            onChanged: (value) => primary = value,
+          ),
+          if (widget.metric == HealthMetric.bloodPressure) ...[
             const SizedBox(height: 10),
-            TextField(
-                controller: second,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '舒张压（低压）')),
+            TextFormField(
+              key: const Key('record-secondary-value'),
+              initialValue: secondary,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: '舒张压（低压）'),
+              onChanged: (value) => secondary = value,
+            ),
           ],
         ]),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('取消')),
-          FilledButton(
-              onPressed: () {
-                final data = metric == HealthMetric.bloodPressure
-                    ? {
-                        'systolic': double.tryParse(first.text),
-                        'diastolic': double.tryParse(second.text)
-                      }
-                    : metric == HealthMetric.mood
-                        ? {'text': first.text.trim()}
-                        : {'value': double.tryParse(first.text)};
-                if (data.values.any((value) => value == null || value == '')) {
-                  return;
-                }
-                Navigator.pop(dialogContext, data);
-              },
-              child: const Text('下一步')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(onPressed: _next, child: const Text('下一步')),
         ],
-      ),
-    );
-    first.dispose();
-    second.dispose();
-    if (result == null || !context.mounted) return;
-    final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-              title: const Text('确认本次记录'),
-              content: Text(result.values.join(' / ')),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(dialogContext, false),
-                    child: const Text('返回修改')),
-                FilledButton(
-                    onPressed: () => Navigator.pop(dialogContext, true),
-                    child: const Text('确认保存'))
-              ],
-            ));
-    if (confirmed == true) await repository.recordHealth(metric, result);
-  }
+      );
 
-  String _label(HealthMetric metric) => const {
-        HealthMetric.bloodPressure: '血压',
-        HealthMetric.bloodGlucose: '血糖',
-        HealthMetric.mood: '心情',
-        HealthMetric.weight: '体重'
-      }[metric]!;
-  String _firstLabel(HealthMetric metric) => switch (metric) {
-        HealthMetric.bloodPressure => '收缩压（高压）',
-        HealthMetric.bloodGlucose => '血糖（mmol/L）',
-        HealthMetric.mood => '今天的心情',
-        HealthMetric.weight => '体重（kg）'
-      };
+  void _next() {
+    final data = widget.metric == HealthMetric.bloodPressure
+        ? {
+            'systolic': double.tryParse(primary.trim()),
+            'diastolic': double.tryParse(secondary.trim()),
+          }
+        : widget.metric == HealthMetric.mood
+            ? {'text': primary.trim()}
+            : {'value': double.tryParse(primary.trim())};
+    if (data.values.any((value) => value == null || value == '')) {
+      setState(() => errorText = '请填写有效的记录数据');
+      return;
+    }
+    Navigator.pop(context, data);
+  }
+}
+
+String _metricLabel(HealthMetric metric) => const {
+      HealthMetric.bloodPressure: '血压',
+      HealthMetric.bloodGlucose: '血糖',
+      HealthMetric.mood: '心情',
+      HealthMetric.weight: '体重',
+    }[metric]!;
+
+String _firstFieldLabel(HealthMetric metric) => switch (metric) {
+      HealthMetric.bloodPressure => '收缩压（高压）',
+      HealthMetric.bloodGlucose => '血糖（mmol/L）',
+      HealthMetric.mood => '今天的心情',
+      HealthMetric.weight => '体重（kg）',
+    };
+
+String _recordSummary(HealthMetric metric, Map<String, dynamic> data) =>
+    switch (metric) {
+      HealthMetric.bloodPressure =>
+        '${_numberLabel(data['systolic'])} / ${_numberLabel(data['diastolic'])} mmHg',
+      HealthMetric.bloodGlucose => '${_numberLabel(data['value'])} mmol/L',
+      HealthMetric.mood => data['text'].toString(),
+      HealthMetric.weight => '${_numberLabel(data['value'])} kg',
+    };
+
+String _numberLabel(Object? value) {
+  final number = value as num?;
+  if (number == null) return '--';
+  return number % 1 == 0 ? number.toInt().toString() : number.toString();
 }
 
 class _ReadingCard extends StatelessWidget {

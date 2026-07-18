@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fubao_app/data/demo_fubao_repository.dart';
+import 'package:fubao_app/domain/models.dart';
 
 void main() {
   test('completing medicine task updates progress', () {
@@ -76,5 +77,29 @@ void main() {
           .status,
       'paused',
     );
+  });
+
+  test('health recording completes the matching task', () async {
+    final repository = DemoFubaoRepository();
+
+    await repository.recordHealth(
+      HealthMetric.bloodPressure,
+      const {'systolic': 120, 'diastolic': 80},
+    );
+
+    final task = repository.tasks
+        .singleWhere((item) => item.kind == TaskKind.bloodPressure);
+    expect(task.isCompleted, isTrue);
+    expect(task.recordData, const {'systolic': 120, 'diastolic': 80});
+  });
+
+  test('demo history never invents tasks on earlier dates', () async {
+    final repository = DemoFubaoRepository();
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+
+    expect(await repository.tasksForDate(yesterday), isEmpty);
+    final today = await repository.tasksForDate(DateTime.now());
+    expect(today, isNotEmpty);
+    expect(today.every((task) => task.scheduledDate != null), isTrue);
   });
 }

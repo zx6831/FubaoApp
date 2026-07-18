@@ -176,11 +176,20 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   Future<void> refresh() async {}
 
   @override
-  Future<List<HealthTask>> tasksForDate(DateTime date) async => tasks;
+  Future<List<HealthTask>> tasksForDate(DateTime date) async {
+    final today = _dateOnly(DateTime.now());
+    if (_dateOnly(date) != today) return const [];
+    return [for (final task in tasks) task.copyWith(scheduledDate: today)];
+  }
 
   @override
-  Future<List<HealthTask>> taskHistory(DateTime from, DateTime to) async =>
-      tasks;
+  Future<List<HealthTask>> taskHistory(DateTime from, DateTime to) async {
+    final today = _dateOnly(DateTime.now());
+    final start = _dateOnly(from);
+    final end = _dateOnly(to);
+    if (today.isBefore(start) || today.isAfter(end)) return const [];
+    return [for (final task in tasks) task.copyWith(scheduledDate: today)];
+  }
 
   @override
   Future<HealthPlan> createPlan(PlanDraft draft) async {
@@ -261,8 +270,29 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
           value: value,
           recordedAt: DateTime.now(),
         ));
+    final taskKind = switch (metric) {
+      HealthMetric.bloodPressure => TaskKind.bloodPressure,
+      HealthMetric.bloodGlucose => TaskKind.bloodGlucose,
+      HealthMetric.mood => TaskKind.mood,
+      HealthMetric.weight => TaskKind.weight,
+    };
+    _tasks = [
+      for (final task in _tasks)
+        if (task.kind == taskKind)
+          task.copyWith(
+            isCompleted: true,
+            isSkipped: false,
+            recordedAt: DateTime.now(),
+            recordData: value,
+          )
+        else
+          task,
+    ];
     notifyListeners();
   }
+
+  DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
 
   @override
   Future<void> updateAlert(

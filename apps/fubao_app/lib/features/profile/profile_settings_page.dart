@@ -303,12 +303,42 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         .join('、');
     final height = healthData['heightCm'];
     final weight = healthData['weightKg'];
+    final name = healthData['relativeName']?.toString() ?? '--';
     return [
-      _info('称呼', healthData['relativeName']?.toString() ?? '--'),
-      _info('慢病类型', conditions.isEmpty ? '未填写' : conditions),
-      _info('身高 / 体重', '${height ?? '--'} cm / ${weight ?? '--'} kg'),
-      _info('紧急联系人', healthData['emergencyContact']?.toString() ?? '未填写'),
-      _info('档案授权', healthData['consentAt'] == null ? '未确认' : '已确认'),
+      _HealthIdentityHeader(
+        name: name,
+        consented: healthData['consentAt'] != null,
+      ),
+      const SizedBox(height: 16),
+      _HealthSection(
+        title: '基本信息',
+        icon: Icons.badge_outlined,
+        rows: [
+          (
+            '身高 / 体重',
+            '${height ?? '--'} cm / ${weight ?? '--'} kg',
+          ),
+        ],
+      ),
+      const SizedBox(height: 14),
+      _HealthSection(
+        title: '健康状况',
+        icon: Icons.monitor_heart_outlined,
+        rows: [
+          ('慢病类型', conditions.isEmpty ? '未填写' : conditions),
+          ('用药史', _profileValue(healthData['medicationHistory'])),
+          ('既往病史', _profileValue(healthData['medicalHistory'])),
+        ],
+      ),
+      const SizedBox(height: 14),
+      _HealthSection(
+        title: '安全与授权',
+        icon: Icons.verified_user_outlined,
+        rows: [
+          ('紧急联系人', healthData['emergencyContact']?.toString() ?? '未填写'),
+          ('档案授权', healthData['consentAt'] == null ? '未确认' : '已确认'),
+        ],
+      ),
       if (!widget.elder) ...[
         const SizedBox(height: 16),
         FilledButton.icon(
@@ -318,6 +348,23 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         ),
       ],
     ];
+  }
+
+  String _profileValue(Object? value) {
+    if (value == null) return '未填写';
+    if (value is List) {
+      final text = value.map((item) => item.toString()).join('、');
+      return text.isEmpty ? '未填写' : text;
+    }
+    if (value is Map) {
+      final text = value.values
+          .where((item) => item != null && item.toString().trim().isNotEmpty)
+          .map((item) => item.toString())
+          .join('、');
+      return text.isEmpty ? '未填写' : text;
+    }
+    final text = value.toString().trim();
+    return text.isEmpty ? '未填写' : text;
   }
 
   List<Widget> _deviceContent(BuildContext context) => [
@@ -709,6 +756,108 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       if (mounted) setState(() => busy = false);
     }
   }
+}
+
+class _HealthIdentityHeader extends StatelessWidget {
+  const _HealthIdentityHeader({required this.name, required this.consented});
+  final String name;
+  final bool consented;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+              colors: [Color(0xFFEAF8F2), Color(0xFFF8FCFA)]),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: FubaoColors.borderMint),
+        ),
+        child: Row(children: [
+          const CircleAvatar(
+            radius: 31,
+            backgroundColor: Colors.white,
+            child: Icon(Icons.person_rounded,
+                size: 36, color: FubaoColors.mintStrong),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: const TextStyle(
+                        fontSize: 23, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 5),
+                const Text('个人健康档案',
+                    style: TextStyle(color: FubaoColors.inkMuted)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: consented ? FubaoColors.mintSoft : const Color(0xFFFFF1E7),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              consented ? '已授权' : '待授权',
+              style: TextStyle(
+                color:
+                    consented ? FubaoColors.mintDeep : FubaoColors.orangeStrong,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ]),
+      );
+}
+
+class _HealthSection extends StatelessWidget {
+  const _HealthSection({
+    required this.title,
+    required this.icon,
+    required this.rows,
+  });
+  final String title;
+  final IconData icon;
+  final List<(String, String)> rows;
+
+  @override
+  Widget build(BuildContext context) => FubaoCard(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(icon, color: FubaoColors.mintStrong, size: 22),
+            const SizedBox(width: 8),
+            Text(title,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+          ]),
+          const SizedBox(height: 10),
+          for (var index = 0; index < rows.length; index++) ...[
+            if (index > 0) const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              child:
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                SizedBox(
+                  width: 90,
+                  child: Text(rows[index].$1,
+                      style: const TextStyle(
+                          color: FubaoColors.inkMuted,
+                          fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(rows[index].$2,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ]),
+            ),
+          ],
+        ]),
+      );
 }
 
 class _HealthProfileEditDialog extends StatefulWidget {

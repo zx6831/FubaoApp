@@ -4,6 +4,7 @@ import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../domain/models.dart';
 import '../../widgets/fubao_widgets.dart';
+import 'message_detail_page.dart';
 
 class MessageCenterPage extends StatefulWidget {
   const MessageCenterPage({required this.repository, super.key});
@@ -57,9 +58,7 @@ class _MessageCenterPageState extends State<MessageCenterPage> {
                     for (final message in messages) ...[
                       _MessageCard(
                         message: message,
-                        onTap: () => widget.repository.markMessageRead(
-                          message.id,
-                        ),
+                        onTap: () => _openMessage(message),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -69,6 +68,14 @@ class _MessageCenterPageState extends State<MessageCenterPage> {
           },
         ),
       );
+
+  Future<void> _openMessage(AppMessage message) async {
+    if (!message.isRead) await widget.repository.markMessageRead(message.id);
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => MessageDetailPage.fromMessage(message),
+    ));
+  }
 
   Widget _chip(AppMessageType? value, String label) => Padding(
         padding: const EdgeInsets.only(right: 8),

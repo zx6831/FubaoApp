@@ -132,10 +132,15 @@ class _FamilyBindingPageState extends State<FamilyBindingPage> {
                                 : '重新生成邀请码')
                             : '确认加入')),
                   ),
-                  if (isChild && widget.invitationCode != null)
+                  if (isChild && widget.invitationCode != null) ...[
+                    const SizedBox(height: 12),
                     OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(50)),
                         onPressed: _busy ? null : () => _run(widget.onRefresh),
                         child: const Text('长辈已加入，刷新状态')),
+                  ],
+                  const SizedBox(height: 8),
                   TextButton(
                       onPressed: _busy ? null : widget.onLogout,
                       child: const Text('退出登录')),

@@ -17,7 +17,8 @@ class ElderHomePage extends StatelessWidget {
         child: AnimatedBuilder(
           animation: repository,
           builder: (context, _) {
-            final medicine = _primaryTask(repository.tasks);
+            final task = _primaryTask(repository.tasks);
+            final presentation = task == null ? null : _presentationFor(task);
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
               children: [
@@ -34,10 +35,14 @@ class ElderHomePage extends StatelessWidget {
                         SizedBox(height: 14),
                         SparkBadge(compact: true),
                       ])),
-                  const ReadAloudButton(text: '早上好，王阿姨。今天要做的事是按时吃药和记录血压。'),
+                  ReadAloudButton(
+                    text: task == null
+                        ? '早上好，王阿姨。今天还没有任务。'
+                        : '早上好，王阿姨。今天要做的事是${task.title}。',
+                  ),
                 ]),
                 const SizedBox(height: 20),
-                if (medicine == null)
+                if (task == null)
                   FubaoCard(
                     padding: const EdgeInsets.all(28),
                     child: Column(children: [
@@ -70,8 +75,8 @@ class ElderHomePage extends StatelessWidget {
                                   fontSize: 29, fontWeight: FontWeight.w900)),
                           const SizedBox(height: 18),
                           Row(children: [
-                            const FubaoIllustrationBubble(
-                              illustration: FubaoIllustration.pill,
+                            FubaoIllustrationBubble(
+                              illustration: presentation!.illustration,
                               size: 120,
                             ),
                             const SizedBox(width: 16),
@@ -80,7 +85,7 @@ class ElderHomePage extends StatelessWidget {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                  Text(medicine.title,
+                                  Text(task.title,
                                       style: const TextStyle(
                                           fontSize: 30,
                                           fontWeight: FontWeight.w900)),
@@ -98,7 +103,7 @@ class ElderHomePage extends StatelessWidget {
                                           fit: BoxFit.scaleDown,
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            medicine.timeLabel,
+                                            task.timeLabel,
                                             maxLines: 1,
                                             style: const TextStyle(
                                               fontSize: 23,
@@ -112,25 +117,32 @@ class ElderHomePage extends StatelessWidget {
                                 ])),
                           ]),
                           const SizedBox(height: 20),
-                          if (!medicine.isCompleted) ...[
+                          if (!task.isCompleted) ...[
                             _LargeTaskButton(
-                              label: '我已经吃了',
-                              icon: Icons.check_rounded,
+                              label: presentation.completeLabel,
+                              icon: presentation.completeIcon,
                               color: FubaoColors.mintStrong,
-                              onTap: () => repository.setTaskCompleted(
-                                  medicine.id, true),
+                              onTap: () => _completeTask(
+                                context,
+                                repository,
+                                task,
+                                presentation,
+                              ),
                             ),
                             const SizedBox(height: 12),
                             _LargeTaskButton(
-                              label: '我还没吃',
+                              label: presentation.skipLabel,
                               icon: Icons.radio_button_unchecked_rounded,
                               color: FubaoColors.orangeStrong,
                               onTap: () async {
-                                await repository.setTaskSkipped(medicine.id);
+                                await repository.setTaskSkipped(task.id);
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('已记录今天没做，家人会看到这个状态')),
+                                    SnackBar(
+                                      content: Text(
+                                        '已记录“${presentation.skipLabel}”，家人会看到这个状态',
+                                      ),
+                                    ),
                                   );
                                 }
                               },
@@ -174,6 +186,80 @@ class ElderHomePage extends StatelessWidget {
           },
         ),
       );
+}
+
+typedef _TaskPresentation = ({
+  FubaoIllustration illustration,
+  String completeLabel,
+  String skipLabel,
+  IconData completeIcon,
+  HealthMetric? metric,
+});
+
+_TaskPresentation _presentationFor(HealthTask task) => switch (task.kind) {
+      TaskKind.medicine => (
+          illustration: FubaoIllustration.pill,
+          completeLabel: '我已经吃了',
+          skipLabel: '我还没吃',
+          completeIcon: Icons.check_rounded,
+          metric: null,
+        ),
+      TaskKind.bloodPressure => (
+          illustration: FubaoIllustration.elderBloodPressureDevice,
+          completeLabel: '去记录血压',
+          skipLabel: '稍后再测',
+          completeIcon: Icons.monitor_heart_outlined,
+          metric: HealthMetric.bloodPressure,
+        ),
+      TaskKind.bloodGlucose => (
+          illustration: FubaoIllustration.planClipboard,
+          completeLabel: '去记录血糖',
+          skipLabel: '稍后再测',
+          completeIcon: Icons.bloodtype_outlined,
+          metric: HealthMetric.bloodGlucose,
+        ),
+      TaskKind.mood => (
+          illustration: FubaoIllustration.elderMood,
+          completeLabel: '去记录心情',
+          skipLabel: '稍后记录',
+          completeIcon: Icons.mood_rounded,
+          metric: HealthMetric.mood,
+        ),
+      TaskKind.weight => (
+          illustration: FubaoIllustration.planClipboard,
+          completeLabel: '去记录体重',
+          skipLabel: '稍后再测',
+          completeIcon: Icons.monitor_weight_outlined,
+          metric: HealthMetric.weight,
+        ),
+      TaskKind.walk => (
+          illustration: FubaoIllustration.elderPark,
+          completeLabel: '我完成散步了',
+          skipLabel: '今天不散步',
+          completeIcon: Icons.directions_walk_rounded,
+          metric: null,
+        ),
+      TaskKind.custom => (
+          illustration: FubaoIllustration.planClipboard,
+          completeLabel: '我已经完成了',
+          skipLabel: '今天先不做',
+          completeIcon: Icons.check_rounded,
+          metric: null,
+        ),
+    };
+
+Future<void> _completeTask(
+  BuildContext context,
+  FubaoRepository repository,
+  HealthTask task,
+  _TaskPresentation presentation,
+) async {
+  final metric = presentation.metric;
+  if (metric != null) {
+    await showHealthRecordDialog(context, repository, metric);
+    return;
+  }
+  await repository.setTaskCompleted(task.id, true);
 }
 
 HealthTask? _primaryTask(List<HealthTask> tasks) {

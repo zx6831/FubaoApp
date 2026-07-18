@@ -36,7 +36,7 @@ class FubaoApp extends StatefulWidget {
   State<FubaoApp> createState() => _FubaoAppState();
 }
 
-class _FubaoAppState extends State<FubaoApp> {
+class _FubaoAppState extends State<FubaoApp> with WidgetsBindingObserver {
   late final FubaoRepository _repository;
   late final bool _ownsRepository;
   late final AppConfig _config;
@@ -49,6 +49,7 @@ class _FubaoAppState extends State<FubaoApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _ownsAccessibilitySettings = widget.accessibilitySettings == null;
     _accessibilitySettings =
         widget.accessibilitySettings ?? AccessibilitySettings();
@@ -79,6 +80,15 @@ class _FubaoAppState extends State<FubaoApp> {
     }
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _config.usesRemoteApi &&
+        _remoteController?.state == RemoteFlowState.ready) {
+      _repository.refresh();
+    }
+  }
+
   void _handleRemoteState() {
     final repository = _repository;
     if (repository is! RemoteFubaoRepository) return;
@@ -100,6 +110,7 @@ class _FubaoAppState extends State<FubaoApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _remoteController?.removeListener(_handleRemoteState);
     _repository.removeListener(_handleRepositoryState);
     if (_ownsRepository) _repository.dispose();

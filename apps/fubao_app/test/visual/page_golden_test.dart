@@ -104,7 +104,11 @@ void main() {
 
     testWidgets('elder plans', (tester) async {
       await pumpReferencePage(
-          tester, ElderPlansPage(repository: DemoFubaoRepository()));
+          tester,
+          ElderPlansPage(
+            repository: DemoFubaoRepository(),
+            today: DateTime(2026, 7, 18),
+          ));
       await expectPage(tester, 'elder_plans');
     });
 

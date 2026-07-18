@@ -8,6 +8,7 @@ import '../../design/fubao_illustrations.dart';
 import '../../domain/models.dart';
 import '../../widgets/fubao_widgets.dart';
 import '../profile/message_center_page.dart';
+import '../profile/message_detail_page.dart';
 
 class ChildTopicsPage extends StatelessWidget {
   const ChildTopicsPage({required this.repository, super.key});
@@ -236,19 +237,40 @@ class _MessageHistory extends StatelessWidget {
             ),
           ]),
           const SizedBox(height: 8),
-          const _HistoryRow(
+          _HistoryRow(
               image: FubaoIllustration.coffee,
               title: '轻松聊聊',
               text: '今天有没有一件让你觉得开心的事？',
-              time: '今天 08:30'),
+              time: '今天 08:30',
+              onTap: () => _openDetail(
+                    context,
+                    '轻松聊聊',
+                    '今天有没有一件让你觉得开心的事？',
+                  )),
           const Divider(),
-          const _HistoryRow(
+          _HistoryRow(
               image: FubaoIllustration.sofa,
               title: '互相支持',
               text: '遇到小困难也没关系，我们一起想想办法吧。',
-              time: '昨天 21:10'),
+              time: '昨天 21:10',
+              onTap: () => _openDetail(
+                    context,
+                    '互相支持',
+                    '遇到小困难也没关系，我们一起想想办法吧。',
+                  )),
         ]),
       );
+
+  void _openDetail(BuildContext context, String title, String text) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => MessageDetailPage(
+        title: title,
+        body: text,
+        category: '家庭话题',
+        createdAt: DateTime.now(),
+      ),
+    ));
+  }
 }
 
 class _HistoryRow extends StatelessWidget {
@@ -256,36 +278,45 @@ class _HistoryRow extends StatelessWidget {
       {required this.image,
       required this.title,
       required this.text,
-      required this.time});
+      required this.time,
+      required this.onTap});
   final FubaoIllustration image;
   final String title;
   final String text;
   final String time;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Row(children: [
-        FubaoIllustrationBubble(
-          illustration: image,
-          size: 46,
-          backgroundColor: const Color(0xFFFFF4E9),
-          padding: const EdgeInsets.all(3),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(
-                child: Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.w800))),
-            Text(time,
-                style:
-                    const TextStyle(color: FubaoColors.inkMuted, fontSize: 10))
-          ]),
-          Text(text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  const TextStyle(color: FubaoColors.inkMuted, fontSize: 11)),
-        ])),
-      ]);
+  Widget build(BuildContext context) => InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(children: [
+          FubaoIllustrationBubble(
+            illustration: image,
+            size: 46,
+            backgroundColor: const Color(0xFFFFF4E9),
+            padding: const EdgeInsets.all(3),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Row(children: [
+                  Expanded(
+                      child: Text(title,
+                          style: const TextStyle(fontWeight: FontWeight.w800))),
+                  Text(time,
+                      style: const TextStyle(
+                          color: FubaoColors.inkMuted, fontSize: 10))
+                ]),
+                Text(text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: FubaoColors.inkMuted, fontSize: 11)),
+              ])),
+        ]),
+      ));
 }

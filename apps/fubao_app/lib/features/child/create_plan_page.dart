@@ -260,44 +260,78 @@ class _StepHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const labels = ['选择计划', '填写信息', '开始执行'];
-    return Row(children: [
-      for (var i = 0; i < labels.length; i++)
-        Expanded(
-            child: Column(children: [
-          Row(children: [
-            if (i > 0)
-              Expanded(
+    return LayoutBuilder(builder: (context, constraints) {
+      return Column(children: [
+        SizedBox(
+          height: 32,
+          child: Stack(alignment: Alignment.center, children: [
+            Positioned(
+              left: constraints.maxWidth / 6,
+              right: constraints.maxWidth / 6,
+              child: Row(children: [
+                Expanded(
                   child: Container(
-                      height: 2,
-                      color: i <= step
-                          ? FubaoColors.mintStrong
-                          : FubaoColors.divider)),
-            CircleAvatar(
-              radius: 15,
-              backgroundColor:
-                  i <= step ? FubaoColors.mintStrong : const Color(0xFFEDECE9),
-              child: Text('${i + 1}',
-                  style: TextStyle(
-                      color: i <= step ? Colors.white : FubaoColors.inkMuted,
-                      fontWeight: FontWeight.w800)),
+                    height: 2,
+                    color: step >= 1
+                        ? FubaoColors.mintStrong
+                        : FubaoColors.divider,
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    color: step >= 2
+                        ? FubaoColors.mintStrong
+                        : FubaoColors.divider,
+                  ),
+                ),
+              ]),
             ),
-            if (i < labels.length - 1)
-              Expanded(
-                  child: Container(
-                      height: 2,
-                      color: i < step
+            Row(children: [
+              for (var i = 0; i < labels.length; i++)
+                Expanded(
+                  child: Center(
+                    child: CircleAvatar(
+                      key: Key('plan-step-indicator-$i'),
+                      radius: 15,
+                      backgroundColor: i <= step
                           ? FubaoColors.mintStrong
-                          : FubaoColors.divider)),
+                          : const Color(0xFFEDECE9),
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          color:
+                              i <= step ? Colors.white : FubaoColors.inkMuted,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ]),
           ]),
-          const SizedBox(height: 6),
-          Text(labels[i],
-              style: TextStyle(
-                  color:
-                      i <= step ? FubaoColors.mintStrong : FubaoColors.inkMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700)),
-        ])),
-    ]);
+        ),
+        const SizedBox(height: 6),
+        Row(children: [
+          for (var i = 0; i < labels.length; i++)
+            Expanded(
+              child: Center(
+                child: Text(
+                  labels[i],
+                  key: Key('plan-step-label-$i'),
+                  style: TextStyle(
+                    color: i <= step
+                        ? FubaoColors.mintStrong
+                        : FubaoColors.inkMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+        ]),
+      ]);
+    });
   }
 }
 
