@@ -337,6 +337,18 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
     await _api.post('feedback', body: {'content': content});
   }
 
+  @override
+  Future<void> registerPushToken(String token) async {
+    await _api.post('notifications/device-token', body: {
+      'token': token,
+      'platform': 'ios',
+      'environment': const String.fromEnvironment(
+        'APP_ENV',
+        defaultValue: 'dev',
+      ),
+    });
+  }
+
   HealthTask _taskFromJson(Map<String, dynamic> json) {
     final status = json['status']?.toString();
     final record = (json['record'] as Map?)?.cast<String, dynamic>();

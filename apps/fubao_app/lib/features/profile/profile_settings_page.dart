@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/fubao_repository.dart';
+import '../../data/notification_permission_service.dart';
 import '../../design/fubao_colors.dart';
 import '../../widgets/fubao_widgets.dart';
 
@@ -41,6 +42,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   double value = 60;
   bool busy = false;
   final feedbackController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.kind == ProfileSettingKind.notifications) enabled = false;
+  }
 
   @override
   void dispose() {
@@ -97,7 +104,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 onChanged: (next) => setState(() => enabled = next),
                 title: const Text('设备语音提醒')),
           ],
-        ProfileSettingKind.notifications => _switches('任务完成通知'),
+        ProfileSettingKind.notifications => _notificationSwitches(),
         ProfileSettingKind.reminder => [
             ..._switches('每日任务提醒'),
             SwitchListTile(
@@ -111,6 +118,15 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             _info('手机号', '已加密保存'),
             _info('设备数据', '解绑后保留 90 天'),
             const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+              ),
+              icon: const Icon(Icons.policy_outlined),
+              label: const Text('查看隐私政策'),
+            ),
+            const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: busy ? null : _exportData,
               icon: const Icon(Icons.download_rounded),
@@ -188,6 +204,20 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             value: dnd,
             onChanged: (next) => setState(() => dnd = next),
             title: const Text('健康提醒')),
+      ];
+
+  List<Widget> _notificationSwitches() => [
+        SwitchListTile(
+          value: enabled,
+          onChanged: busy ? null : _setNotificationsEnabled,
+          title: const Text('任务完成通知'),
+          subtitle: const Text('首次开启时由 iOS 请求通知权限'),
+        ),
+        SwitchListTile(
+          value: dnd,
+          onChanged: (next) => setState(() => dnd = next),
+          title: const Text('健康提醒'),
+        ),
       ];
 
   Widget _info(String label, String value) => FubaoCard(
@@ -306,6 +336,68 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       if (mounted) setState(() => busy = false);
     }
   }
+
+  Future<void> _setNotificationsEnabled(bool next) async {
+    if (!next) {
+      setState(() => enabled = false);
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      final result = await NotificationPermissionService().request();
+      if (!result.authorized) {
+        if (mounted) _notice('通知权限未开启，可稍后在 iPhone 系统设置中允许。');
+        return;
+      }
+      if (result.deviceToken != null && widget.repository != null) {
+        await widget.repository!.registerPushToken(result.deviceToken!);
+      }
+      if (mounted) setState(() => enabled = true);
+    } catch (error) {
+      if (mounted) _notice('通知设置失败：$error');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+}
+
+class PrivacyPolicyPage extends StatelessWidget {
+  const PrivacyPolicyPage({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('福豹隐私政策'), centerTitle: true),
+        body: ListView(
+          padding: const EdgeInsets.all(20),
+          children: const [
+            Text('更新日期：2026 年 7 月 18 日',
+                style: TextStyle(color: FubaoColors.inkMuted)),
+            SizedBox(height: 18),
+            Text('我们处理哪些信息',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8),
+            Text(
+                '为完成登录、家庭绑定和健康管理功能，福豹会处理手机号、家庭关系、健康档案、每日任务、健康记录、设备状态、消息和必要的安全审计信息。'),
+            SizedBox(height: 18),
+            Text('如何保护和使用',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8),
+            Text(
+                '这些信息仅用于应用功能，不用于广告追踪，也不会出售。iOS 登录凭证和离线缓存保存在本机 Keychain，服务端使用 HTTPS、加密、角色鉴权、限流和审计保护数据。'),
+            SizedBox(height: 18),
+            Text('你的选择',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8),
+            Text(
+                '你可以导出数据、关闭通知或申请注销。退出登录不会删除数据；退出家庭组会解除家庭访问关系；注销申请将在 30 天后执行删除。'),
+            SizedBox(height: 18),
+            Text('健康免责声明',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            SizedBox(height: 8),
+            Text('福豹提供健康管理与关怀提醒，不提供诊断和治疗，不能替代医生的专业建议。'),
+          ],
+        ),
+      );
 }
 
 class AccountSettingsPage extends StatelessWidget {

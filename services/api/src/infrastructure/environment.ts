@@ -13,6 +13,11 @@ export interface AppEnvironment {
   APNS_TOPIC?: string;
   APNS_AUTH_TOKEN?: string;
   APNS_HOST?: string;
+  SMS_MODE: 'fake' | 'http';
+  SMS_PROVIDER_URL?: string;
+  SMS_PROVIDER_TOKEN?: string;
+  REVIEW_PHONE?: string;
+  REVIEW_CODE?: string;
 }
 
 export function validateEnvironment(raw: Record<string, unknown>): AppEnvironment {
@@ -42,6 +47,14 @@ export function validateEnvironment(raw: Record<string, unknown>): AppEnvironmen
   if (apnsMode === 'apns' && (!raw.APNS_TOPIC || !raw.APNS_AUTH_TOKEN)) {
     throw new Error('APNS_TOPIC and APNS_AUTH_TOKEN are required in apns mode');
   }
+  const smsMode = stringValue(raw.SMS_MODE, 'fake');
+  if (!['fake', 'http'].includes(smsMode)) throw new Error('SMS_MODE must be fake or http');
+  if (smsMode === 'http' && (!raw.SMS_PROVIDER_URL || !raw.SMS_PROVIDER_TOKEN)) {
+    throw new Error('SMS_PROVIDER_URL and SMS_PROVIDER_TOKEN are required in http mode');
+  }
+  if (Boolean(raw.REVIEW_PHONE) !== Boolean(raw.REVIEW_CODE)) {
+    throw new Error('REVIEW_PHONE and REVIEW_CODE must be configured together');
+  }
   const productionSecrets = [
     optionalString(raw.JWT_ACCESS_SECRET),
     optionalString(raw.HASH_PEPPER),
@@ -64,6 +77,11 @@ export function validateEnvironment(raw: Record<string, unknown>): AppEnvironmen
     APNS_TOPIC: optionalString(raw.APNS_TOPIC),
     APNS_AUTH_TOKEN: optionalString(raw.APNS_AUTH_TOKEN),
     APNS_HOST: optionalString(raw.APNS_HOST),
+    SMS_MODE: smsMode as AppEnvironment['SMS_MODE'],
+    SMS_PROVIDER_URL: optionalString(raw.SMS_PROVIDER_URL),
+    SMS_PROVIDER_TOKEN: optionalString(raw.SMS_PROVIDER_TOKEN),
+    REVIEW_PHONE: optionalString(raw.REVIEW_PHONE),
+    REVIEW_CODE: optionalString(raw.REVIEW_CODE),
   };
 }
 

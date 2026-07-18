@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { FakeNotificationAdapter } from '../src/integrations/fake-notification.adapter';
 import { IntegrationsModule } from '../src/integrations/integrations.module';
 import { NOTIFICATION_ADAPTER, NotificationAdapter } from '../src/integrations/notification.adapter';
+import { FakeSmsAdapter } from '../src/integrations/fake-sms.adapter';
+import { SMS_ADAPTER, SmsAdapter } from '../src/integrations/sms.adapter';
 
 describe('notification adapter', () => {
   it('uses a deterministic in-memory adapter without production APNs credentials', async () => {
@@ -19,6 +21,10 @@ describe('notification adapter', () => {
     expect(result.accepted).toBe(true);
     expect(fake.delivered).toHaveLength(1);
     expect(fake.delivered[0].body).toBe('该记录血压了');
+    const sms = module.get<SmsAdapter>(SMS_ADAPTER);
+    const fakeSms = module.get(FakeSmsAdapter);
+    await sms.sendCode('13800000000', '2468');
+    expect(fakeSms.delivered.get('13800000000')).toBe('2468');
     await module.close();
   });
 });

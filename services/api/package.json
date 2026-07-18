@@ -14,7 +14,7 @@
     "start:dev": "nest start --watch",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
-    "verify": "npm run prisma:validate && npm test && npm run build"
+    "verify": "npm run prisma:validate && npm run prisma:generate && npm test && npm run build"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

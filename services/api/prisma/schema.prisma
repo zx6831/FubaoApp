@@ -110,6 +110,20 @@ model User {
   messages              Message[]
   auditLogs             AuditLog[]        @relation("AuditActor")
   deletionRequest       DeletionRequest?
+  pushTokens            PushToken[]
+}
+
+model PushToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  token       String   @unique
+  platform    String   @default("ios")
+  environment String   @default("production")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Session {

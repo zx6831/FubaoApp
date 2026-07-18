@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomInt, randomUUID } from 'node:crypto';
 import { PrismaService } from '../infrastructure/prisma.service';
@@ -6,6 +6,7 @@ import { RedisService } from '../infrastructure/redis.service';
 import { AppRole, PublicUser } from './auth.types';
 import { MemoryIdentityState, MemoryUser } from './memory-identity-state';
 import { SecurityService } from './security.service';
+import { SMS_ADAPTER, SmsAdapter } from '../integrations/sms.adapter';
 
 const VERIFICATION_TTL_SECONDS = 5 * 60;
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -20,12 +21,20 @@ export class AuthService {
     private readonly redis: RedisService,
     private readonly memory: MemoryIdentityState,
     private readonly security: SecurityService,
+    @Inject(SMS_ADAPTER) private readonly sms: SmsAdapter,
   ) {
     this.isProduction = config.get('NODE_ENV') === 'production';
   }
 
   async requestCode(phone: string) {
-    const code = this.isProduction ? randomInt(100000, 1000000).toString() : '2468';
+    const reviewPhone = this.config.get<string>('REVIEW_PHONE');
+    const reviewCode = this.config.get<string>('REVIEW_CODE');
+    const isReviewAccount = this.isProduction && phone === reviewPhone && reviewCode;
+    const code = isReviewAccount
+      ? reviewCode
+      : this.isProduction
+        ? randomInt(100000, 1000000).toString()
+        : '2468';
     const expiresAt = new Date(Date.now() + VERIFICATION_TTL_SECONDS * 1000);
     const key = this.verificationKey(phone);
     if (this.redis.isEnabled()) {
@@ -33,6 +42,7 @@ export class AuthService {
     } else {
       this.memory.verificationCodes.set(key, { code, expiresAt });
     }
+    await this.sms.sendCode(phone, code);
     return {
       expiresAt: expiresAt.toISOString(),
       ...(this.isProduction ? {} : { testCode: code }),

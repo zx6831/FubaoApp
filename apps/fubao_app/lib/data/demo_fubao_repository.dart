@@ -264,4 +264,7 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
 
   @override
   Future<void> submitFeedback(String content) async {}
+
+  @override
+  Future<void> registerPushToken(String token) async {}
 }

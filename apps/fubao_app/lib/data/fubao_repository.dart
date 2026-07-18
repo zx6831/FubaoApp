@@ -57,5 +57,7 @@ abstract interface class FubaoRepository implements Listenable {
 
   Future<void> submitFeedback(String content);
 
+  Future<void> registerPushToken(String token);
+
   void dispose();
 }

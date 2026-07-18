@@ -270,6 +270,7 @@ void main() {
     final exported = await repository.exportData();
     final deleteAfter = await repository.scheduleAccountDeletion();
     await repository.submitFeedback('希望增加语音提示');
+    await repository.registerPushToken('a' * 64);
 
     expect(exported['generatedAt'], isNotNull);
     expect(deleteAfter, DateTime.parse('2026-08-17T01:00:00.000Z'));
@@ -278,6 +279,7 @@ void main() {
     expect(requests, contains('GET /api/privacy/export'));
     expect(requests, contains('DELETE /api/privacy/account'));
     expect(requests, contains('POST /api/feedback'));
+    expect(requests, contains('POST /api/notifications/device-token'));
     repository.dispose();
     api.dispose();
   });

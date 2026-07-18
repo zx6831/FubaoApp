@@ -44,6 +44,11 @@ services:
       APNS_MODE: ${APNS_MODE:-fake}
       APNS_TOPIC: ${APNS_TOPIC:-}
       APNS_AUTH_TOKEN: ${APNS_AUTH_TOKEN:-}
+      SMS_MODE: ${SMS_MODE:-fake}
+      SMS_PROVIDER_URL: ${SMS_PROVIDER_URL:-}
+      SMS_PROVIDER_TOKEN: ${SMS_PROVIDER_TOKEN:-}
+      REVIEW_PHONE: ${REVIEW_PHONE:-}
+      REVIEW_CODE: ${REVIEW_CODE:-}
     depends_on:
       postgres:
         condition: service_healthy

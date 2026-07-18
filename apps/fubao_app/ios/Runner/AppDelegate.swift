@@ -1,6 +1,7 @@
 import Flutter
 import Security
 import UIKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -8,6 +9,7 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    UNUserNotificationCenter.current().delegate = self
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -64,6 +66,20 @@ import UIKit
         (status == errSecSuccess || status == errSecItemNotFound)
           ? result(nil)
           : result(FlutterError(code: "KEYCHAIN_DELETE", message: "Unable to delete secure value", details: status))
+      case "requestNotifications":
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) {
+          granted, error in
+          DispatchQueue.main.async {
+            if let error = error {
+              result(FlutterError(code: "NOTIFICATION_PERMISSION", message: error.localizedDescription, details: nil))
+              return
+            }
+            if granted { UIApplication.shared.registerForRemoteNotifications() }
+            result(granted)
+          }
+        }
+      case "readPushToken":
+        result(Self.readValue(account: "apns-device-token"))
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -132,5 +148,14 @@ import UIKit
 
   private static func deleteValue(account: String) -> OSStatus {
     SecItemDelete(valueQuery(account: account) as CFDictionary)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+    let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+    _ = Self.writeValue(token, account: "apns-device-token")
   }
 }
