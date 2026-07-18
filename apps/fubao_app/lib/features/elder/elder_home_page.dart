@@ -140,7 +140,6 @@ class ElderHomePage extends StatelessWidget {
                               label: '已完成',
                               icon: Icons.check_circle_rounded,
                               color: FubaoColors.mintStrong,
-                              onTap: () {},
                             ),
                         ]),
                   ),
@@ -190,11 +189,11 @@ class _LargeTaskButton extends StatelessWidget {
       {required this.label,
       required this.icon,
       required this.color,
-      required this.onTap});
+      this.onTap});
   final String label;
   final IconData icon;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Material(
         color: color,

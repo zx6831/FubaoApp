@@ -302,11 +302,10 @@ class _StepHeader extends StatelessWidget {
 }
 
 class _OptionCard extends StatelessWidget {
-  const _OptionCard(
-      {required this.option, required this.selected, required this.onTap});
+  const _OptionCard({required this.option, required this.selected, this.onTap});
   final _PlanOption option;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => FubaoCard(
         onTap: onTap,
@@ -462,7 +461,7 @@ class _Confirmation extends StatelessWidget {
               '日'
             ][day - 1]).join('、')}';
     return Column(children: [
-      _OptionCard(option: option, selected: true, onTap: () {}),
+      _OptionCard(option: option, selected: true),
       const SizedBox(height: 12),
       FubaoCard(
           child: Column(children: [

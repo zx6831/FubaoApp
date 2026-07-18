@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/care_share_service.dart';
 import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
@@ -7,10 +8,34 @@ import '../../widgets/fubao_widgets.dart';
 import '../../domain/models.dart';
 import '../health/health_center_page.dart';
 
-class ChildHomePage extends StatelessWidget {
-  const ChildHomePage({required this.repository, super.key});
+class ChildHomePage extends StatefulWidget {
+  const ChildHomePage({required this.repository, this.shareText, super.key});
 
   final FubaoRepository repository;
+  final Future<CareShareTarget> Function(String text)? shareText;
+
+  @override
+  State<ChildHomePage> createState() => _ChildHomePageState();
+}
+
+class _ChildHomePageState extends State<ChildHomePage> {
+  int conversationSet = 0;
+  FubaoRepository get repository => widget.repository;
+
+  static const conversationSets = [
+    [
+      _ConversationPrompt(FubaoIllustration.coffee, '轻松聊聊',
+          '今天有没有一件让你\n觉得开心的事？', '今天有没有一件让你觉得开心的事？'),
+      _ConversationPrompt(FubaoIllustration.sofa, '互相支持',
+          '遇到小困难也没关系，\n我们一起想想办法吧。', '遇到小困难也没关系，我们一起想想办法吧。'),
+    ],
+    [
+      _ConversationPrompt(FubaoIllustration.park, '散步时光', '今天散步看到什么\n有趣的事情了吗？',
+          '今天散步看到什么有趣的事情了吗？'),
+      _ConversationPrompt(FubaoIllustration.plants, '温暖问候',
+          '最近睡得怎么样？\n记得好好休息呀。', '最近睡得怎么样？记得好好休息呀。'),
+    ],
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +95,8 @@ class ChildHomePage extends StatelessWidget {
                           TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                 ),
                 TextButton.icon(
-                  onPressed: () {},
+                  onPressed: () => setState(() => conversationSet =
+                      (conversationSet + 1) % conversationSets.length),
                   icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: const Text('换一换'),
                   style: TextButton.styleFrom(
@@ -78,17 +104,16 @@ class ChildHomePage extends StatelessWidget {
                 ),
               ],
             ),
-            const _ConversationCard(
-              image: FubaoIllustration.coffee,
-              category: '轻松聊聊',
-              text: '今天有没有一件让你\n觉得开心的事？',
-            ),
-            const SizedBox(height: 10),
-            const _ConversationCard(
-              image: FubaoIllustration.sofa,
-              category: '互相支持',
-              text: '遇到小困难也没关系，\n我们一起想想办法吧。',
-            ),
+            for (var i = 0;
+                i < conversationSets[conversationSet].length;
+                i++) ...[
+              _ConversationCard(
+                prompt: conversationSets[conversationSet][i],
+                onPressed: () => _shareConversation(
+                    context, conversationSets[conversationSet][i].shareText),
+              ),
+              if (i == 0) const SizedBox(height: 10),
+            ],
           ],
         ),
       ),
@@ -106,6 +131,18 @@ class ChildHomePage extends StatelessWidget {
         MaterialPageRoute<void>(
             builder: (_) => HealthCenterPage(repository: repository)),
       );
+
+  Future<void> _shareConversation(BuildContext context, String text) async {
+    final target = await (widget.shareText ?? CareShareService().share)(text);
+    if (!context.mounted) return;
+    final message = switch (target) {
+      CareShareTarget.wechat => '话术已复制，正在打开微信',
+      CareShareTarget.system => '已打开系统分享',
+      CareShareTarget.clipboard => '话术已复制，可粘贴到聊天应用',
+    };
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
 }
 
 class _AlertBanner extends StatelessWidget {
@@ -383,18 +420,16 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _ConversationCard extends StatelessWidget {
-  const _ConversationCard(
-      {required this.image, required this.category, required this.text});
-  final FubaoIllustration image;
-  final String category;
-  final String text;
+  const _ConversationCard({required this.prompt, required this.onPressed});
+  final _ConversationPrompt prompt;
+  final VoidCallback onPressed;
   @override
   Widget build(BuildContext context) => FubaoCard(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             FubaoIllustrationBubble(
-              illustration: image,
+              illustration: prompt.image,
               size: 72,
               backgroundColor: const Color(0xFFFFF2E7),
               padding: const EdgeInsets.all(5),
@@ -404,18 +439,18 @@ class _ConversationCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(category,
+                  Text(prompt.category,
                       style: const TextStyle(
                           color: FubaoColors.orangeStrong,
                           fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
-                  Text(text,
+                  Text(prompt.text,
                       style: const TextStyle(fontSize: 14, height: 1.35)),
                 ],
               ),
             ),
             OutlinedButton(
-              onPressed: () {},
+              onPressed: onPressed,
               style: OutlinedButton.styleFrom(
                 foregroundColor: FubaoColors.orangeStrong,
                 side: const BorderSide(color: FubaoColors.orangeStrong),
@@ -426,4 +461,13 @@ class _ConversationCard extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _ConversationPrompt {
+  const _ConversationPrompt(
+      this.image, this.category, this.text, this.shareText);
+  final FubaoIllustration image;
+  final String category;
+  final String text;
+  final String shareText;
 }

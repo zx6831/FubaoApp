@@ -138,6 +138,7 @@ export class AuthService {
       phoneCiphertext: this.security.encrypt(phone),
       nickname: role === 'child' ? '子女用户' : '长辈用户',
       role,
+      deletedAt: null,
     };
     this.memory.usersByPhoneHash.set(phoneHash, user);
     this.memory.usersById.set(user.id, user);

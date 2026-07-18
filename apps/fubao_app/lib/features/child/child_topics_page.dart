@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/care_share_service.dart';
 import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
@@ -103,8 +104,14 @@ class _TopicCard extends StatelessWidget {
                   ClipboardData(text: topic.suggestedWords));
               await repository.markTopicCopied(topic.id);
               if (context.mounted) {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(const SnackBar(content: Text('话术已复制')));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: const Text('话术已复制'),
+                  action: SnackBarAction(
+                    label: '分享',
+                    onPressed: () =>
+                        CareShareService().share(topic.suggestedWords),
+                  ),
+                ));
               }
             },
             style: OutlinedButton.styleFrom(

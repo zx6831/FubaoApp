@@ -7,6 +7,7 @@ export interface MemoryUser {
   phoneCiphertext: string;
   nickname: string;
   role: AppRole;
+  deletedAt: Date | null;
 }
 
 export interface MemorySession {

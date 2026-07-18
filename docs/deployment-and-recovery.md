@@ -27,3 +27,9 @@
 ## APNs
 
 开发与测试默认 `APNS_MODE=fake`，消息只进入内存适配器。生产切换为 `apns` 前，配置 Bundle Topic 与短期 APNs JWT；密钥和 Token 只通过部署密钥系统注入，不进入镜像或 Git。
+
+## 注销删除队列
+
+注销申请保存 `deleteAfter`，API 启动时及之后每小时扫描一次到期请求。执行时会撤销会话与推送 Token、删除健康档案和用户健康数据、移除家庭访问关系、清理派生话题/火花、匿名化账号标识并写入不含个人信息的审计记录。旧 Access Token 会立即被鉴权层拒绝；原手机号可重新注册为新账号。
+
+删除任务异常会写入 Nest 日志并在下一轮重试。生产监控应对 `Account deletion worker failed` 建立告警。

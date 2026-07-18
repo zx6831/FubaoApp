@@ -80,6 +80,24 @@ import UserNotifications
         }
       case "readPushToken":
         result(Self.readValue(account: "apns-device-token"))
+      case "shareCareText":
+        guard let arguments = call.arguments as? [String: Any],
+          let text = arguments["text"] as? String else {
+          result(FlutterError(code: "INVALID_TEXT", message: "Share text must be a string", details: nil))
+          return
+        }
+        UIPasteboard.general.string = text
+        if let wechat = URL(string: "weixin://"), UIApplication.shared.canOpenURL(wechat) {
+          UIApplication.shared.open(wechat)
+          result("wechat")
+          return
+        }
+        guard let presenter = Self.topViewController() else {
+          result(FlutterError(code: "NO_PRESENTER", message: "Unable to present system share", details: nil))
+          return
+        }
+        presenter.present(UIActivityViewController(activityItems: [text], applicationActivities: nil), animated: true)
+        result("system")
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -148,6 +166,18 @@ import UserNotifications
 
   private static func deleteValue(account: String) -> OSStatus {
     SecItemDelete(valueQuery(account: account) as CFDictionary)
+  }
+
+  private static func topViewController() -> UIViewController? {
+    let window = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+      .first { $0.isKeyWindow }
+    var controller = window?.rootViewController
+    while let presented = controller?.presentedViewController {
+      controller = presented
+    }
+    return controller
   }
 
   override func application(

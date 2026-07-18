@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { MemoryIdentityState } from '../auth/memory-identity-state';
@@ -6,8 +6,32 @@ import { FamilyService } from '../families/family.service';
 import { PrismaService } from '../infrastructure/prisma.service';
 
 @Injectable()
-export class EngagementService {
+export class EngagementService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(EngagementService.name);
+  private deletionTimer?: NodeJS.Timeout;
+
   constructor(private readonly prisma: PrismaService, private readonly memory: MemoryIdentityState, private readonly families: FamilyService) {}
+
+  onModuleInit() {
+    this.deletionTimer = setInterval(() => {
+      void this.runDeletionWorker();
+    }, 60 * 60 * 1000);
+    this.deletionTimer.unref();
+    void this.runDeletionWorker();
+  }
+
+  onModuleDestroy() {
+    if (this.deletionTimer) clearInterval(this.deletionTimer);
+  }
+
+  private async runDeletionWorker() {
+    try {
+      const { processed } = await this.processDueDeletionRequests();
+      if (processed) this.logger.log(`Completed ${processed} account deletion request(s)`);
+    } catch (error) {
+      this.logger.error('Account deletion worker failed', error instanceof Error ? error.stack : String(error));
+    }
+  }
 
   async topics(user: AuthenticatedUser) {
     const family = await this.families.current(user);
@@ -107,6 +131,117 @@ export class EngagementService {
   async deletionStatus(user: AuthenticatedUser) {
     const item = this.prisma.isEnabled() ? await this.prisma.deletionRequest.findUnique({ where: { userId: user.sub } }) : this.memory.deletionRequestsV1.get(user.sub);
     return item ? { status: item.completedAt ? 'completed' : 'scheduled', requestedAt: item.requestedAt.toISOString(), deleteAfter: item.deleteAfter.toISOString() } : { status: 'none' };
+  }
+
+  async processDueDeletionRequests(now = new Date()) {
+    if (this.prisma.isEnabled()) {
+      const due = await this.prisma.deletionRequest.findMany({
+        where: { completedAt: null, deleteAfter: { lte: now } },
+        select: { id: true, userId: true },
+      });
+      for (const request of due) {
+        await this.prisma.$transaction(async (tx) => {
+          const user = await tx.user.findUnique({ where: { id: request.userId } });
+          if (!user || user.deletedAt) {
+            await tx.deletionRequest.update({ where: { id: request.id }, data: { completedAt: now } });
+            return;
+          }
+          const memberships = await tx.familyMember.findMany({
+            where: { userId: user.id },
+            select: { familyId: true },
+          });
+          const familyIds = memberships.map((item) => item.familyId);
+
+          await tx.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: now } });
+          await tx.pushToken.deleteMany({ where: { userId: user.id } });
+          await tx.alert.deleteMany({ where: { userId: user.id } });
+          await tx.healthReading.deleteMany({ where: { userId: user.id } });
+          await tx.plan.deleteMany({ where: { OR: [{ subjectUserId: user.id }, { createdById: user.id }] } });
+          await tx.dailyTask.deleteMany({ where: { userId: user.id } });
+          await tx.message.deleteMany({ where: { userId: user.id } });
+          await tx.healthProfile.deleteMany({ where: { userId: user.id } });
+          await tx.familyMember.updateMany({ where: { userId: user.id }, data: { status: 'removed', exitedAt: now } });
+          if (familyIds.length) {
+            await tx.topic.deleteMany({ where: { familyId: { in: familyIds } } });
+            await tx.sparkActivity.deleteMany({ where: { familyId: { in: familyIds } } });
+            await tx.sparkStatus.deleteMany({ where: { familyId: { in: familyIds } } });
+          }
+          if (user.role === 'child') {
+            await tx.family.updateMany({
+              where: { ownerId: user.id, status: 'active' },
+              data: { status: 'dissolved', dissolvedAt: now },
+            });
+          }
+          await tx.auditLog.updateMany({ where: { actorId: user.id }, data: { actorId: null, metadata: { redacted: true } } });
+          await tx.user.update({
+            where: { id: user.id },
+            data: {
+              phoneHash: `deleted:${randomUUID()}`,
+              phoneCiphertext: '',
+              nickname: '已注销用户',
+              deletedAt: now,
+            },
+          });
+          await tx.deletionRequest.update({ where: { id: request.id }, data: { completedAt: now } });
+          await tx.auditLog.create({
+            data: {
+              action: 'privacy.account_deleted',
+              resourceType: 'user',
+              resourceId: user.id,
+              metadata: { completedAt: now.toISOString() },
+            },
+          });
+        });
+      }
+      return { processed: due.length };
+    }
+
+    let processed = 0;
+    for (const [userId, request] of this.memory.deletionRequestsV1) {
+      if (request.completedAt || request.deleteAfter > now) continue;
+      const user = this.memory.usersById.get(userId);
+      if (!user) {
+        request.completedAt = now;
+        continue;
+      }
+      for (const [key, session] of this.memory.sessions) {
+        if (session.userId === userId) this.memory.sessions.delete(key);
+      }
+      const familyIds = new Set<string>();
+      for (const [id, family] of this.memory.families) {
+        if (!family.members.some((member) => member.userId === userId)) continue;
+        familyIds.add(id);
+        family.members = family.members.filter((member) => member.userId !== userId);
+        if (family.ownerId === userId) this.memory.families.delete(id);
+      }
+      this.memory.usersByPhoneHash.delete(user.phoneHash);
+      user.phoneHash = `deleted:${randomUUID()}`;
+      user.phoneCiphertext = '';
+      user.nickname = '已注销用户';
+      user.deletedAt = now;
+      this.memory.healthProfiles.delete(userId);
+      for (const [id, item] of this.memory.plans) {
+        if (item.subjectUserId === userId || item.createdById === userId) this.memory.plans.delete(id);
+      }
+      for (const [id, item] of this.memory.dailyTasks) {
+        if (item.userId === userId || familyIds.has(item.familyId) && user.role === 'child') this.memory.dailyTasks.delete(id);
+      }
+      for (const [id, item] of this.memory.healthReadingsV1) {
+        if (item.userId === userId || familyIds.has(item.familyId) && user.role === 'child') this.memory.healthReadingsV1.delete(id);
+      }
+      for (const [id, item] of this.memory.alertsV1) {
+        if (item.userId === userId || familyIds.has(item.familyId) && user.role === 'child') this.memory.alertsV1.delete(id);
+      }
+      for (const [id, item] of this.memory.engagementTopics) {
+        if (familyIds.has(item.key?.split(':')[0])) this.memory.engagementTopics.delete(id);
+      }
+      for (const [id, item] of this.memory.engagementMessages) {
+        if (item.userId === userId || familyIds.has(item.familyId) && user.role === 'child') this.memory.engagementMessages.delete(id);
+      }
+      request.completedAt = now;
+      processed += 1;
+    }
+    return { processed };
   }
 
   async feedback(user: AuthenticatedUser, content: string) {
