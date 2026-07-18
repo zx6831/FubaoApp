@@ -33,7 +33,8 @@ void main() {
 
     expect(find.text('已连续互动 12 天'), findsOneWidget);
     expect(find.text('聊一聊，会更好'), findsOneWidget);
-    expect(find.byType(FubaoIllustrationAsset), findsAtLeastNWidgets(5));
+    expect(find.byType(FubaoIllustrationAsset), findsAtLeastNWidgets(4));
+    expect(find.byKey(const Key('mood-icon-happy')), findsOneWidget);
     expect(find.byKey(const Key('fubao-bottom-navigation')), findsOneWidget);
   });
 

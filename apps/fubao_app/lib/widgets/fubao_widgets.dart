@@ -352,8 +352,9 @@ class SectionTitle extends StatelessWidget {
 }
 
 class SparkBadge extends StatelessWidget {
-  const SparkBadge({super.key, this.compact = false});
+  const SparkBadge({required this.spark, super.key, this.compact = false});
 
+  final FamilySpark spark;
   final bool compact;
 
   @override
@@ -367,25 +368,63 @@ class SparkBadge extends StatelessWidget {
         vertical: compact ? 6 : 10,
       ),
       decoration: BoxDecoration(
-        color: FubaoColors.mintSoft,
+        color: spark.lit ? FubaoColors.mintSoft : const Color(0xFFF0F1F1),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.auto_awesome_rounded,
-              color: FubaoColors.mintStrong, size: compact ? 18 : 24),
+              color: spark.lit ? FubaoColors.mintStrong : FubaoColors.inkMuted,
+              size: compact ? 18 : 24),
           SizedBox(width: compact ? 5 : 7),
           Text(
-            compact ? '连续 12 天' : '已连续互动 12 天',
+            spark.lit
+                ? compact
+                    ? '连续 ${spark.streakDays} 天'
+                    : '已连续互动 ${spark.streakDays} 天'
+                : '今日火花未点亮',
             style: TextStyle(
               fontSize: compact ? 14 : 17,
               height: 1,
               fontWeight: FontWeight.w800,
-              color: FubaoColors.mintStrong,
+              color: spark.lit ? FubaoColors.mintStrong : FubaoColors.inkMuted,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class SparkIllustration extends StatelessWidget {
+  const SparkIllustration({
+    required this.spark,
+    super.key,
+    this.width,
+    this.height,
+  });
+
+  final FamilySpark spark;
+  final double? width;
+  final double? height;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = FubaoIllustrationAsset(
+      FubaoIllustration.spark,
+      width: width,
+      height: height,
+    );
+    if (spark.lit) return image;
+    return Opacity(
+      opacity: .58,
+      child: ColorFiltered(
+        colorFilter: const ColorFilter.mode(
+          Color(0xFF9CA3A2),
+          BlendMode.color,
+        ),
+        child: image,
       ),
     );
   }

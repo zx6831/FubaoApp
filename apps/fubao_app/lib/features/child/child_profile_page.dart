@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/fubao_repository.dart';
 import '../../design/fubao_colors.dart';
 import '../../design/fubao_illustrations.dart';
+import '../../domain/models.dart';
 import '../../widgets/fubao_widgets.dart';
 import '../profile/profile_settings_page.dart';
 import '../profile/message_center_page.dart';
@@ -13,167 +14,179 @@ class ChildProfilePage extends StatelessWidget {
   final FubaoRepository? repository;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
-          children: [
-            Row(children: [
-              const BrandMark(),
-              const Spacer(),
-              _ProfileAction(
-                Icons.notifications_none_rounded,
-                onTap: () => repository == null
-                    ? _open(context, ProfileSettingKind.notifications)
-                    : Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              MessageCenterPage(repository: repository!),
-                        ),
-                      ),
-              ),
-              const SizedBox(width: 10),
-              _ProfileAction(Icons.settings_outlined,
-                  onTap: () => Navigator.push(
+  Widget build(BuildContext context) {
+    final spark = repository?.spark ??
+        const FamilySpark(
+          lit: false,
+          streakDays: 0,
+          childActive: false,
+          elderActive: false,
+        );
+    return SafeArea(
+      bottom: false,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+        children: [
+          Row(children: [
+            const BrandMark(),
+            const Spacer(),
+            _ProfileAction(
+              Icons.notifications_none_rounded,
+              onTap: () => repository == null
+                  ? _open(context, ProfileSettingKind.notifications)
+                  : Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) =>
-                              AccountSettingsPage(onLogout: onLogout)))),
-            ]),
-            const SizedBox(height: 16),
-            FubaoCard(
-              onTap: () => _open(context, ProfileSettingKind.family),
-              borderColor: const Color(0xFFF2E5D9),
-              padding: const EdgeInsets.all(16),
-              child: Row(children: [
-                const FubaoIllustrationBubble(
-                  illustration: FubaoIllustration.mascotAvatar,
-                  size: 108,
-                  backgroundColor: Color(0xFFFFF1DF),
-                  padding: EdgeInsets.all(2),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text('小雨',
+                        builder: (_) =>
+                            MessageCenterPage(repository: repository!),
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 10),
+            _ProfileAction(Icons.settings_outlined,
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            AccountSettingsPage(onLogout: onLogout)))),
+          ]),
+          const SizedBox(height: 16),
+          FubaoCard(
+            onTap: () => _open(context, ProfileSettingKind.family),
+            borderColor: const Color(0xFFF2E5D9),
+            padding: const EdgeInsets.all(16),
+            child: Row(children: [
+              const FubaoIllustrationBubble(
+                illustration: FubaoIllustration.mascotAvatar,
+                size: 108,
+                backgroundColor: Color(0xFFFFF1DF),
+                padding: EdgeInsets.all(2),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    const Text('小雨',
+                        style: TextStyle(
+                            fontSize: 25, fontWeight: FontWeight.w900)),
+                    SizedBox(height: 8),
+                    Text.rich(TextSpan(children: [
+                      const TextSpan(text: '已连续互动 '),
+                      TextSpan(
+                          text: '${spark.streakDays}',
                           style: TextStyle(
-                              fontSize: 25, fontWeight: FontWeight.w900)),
-                      SizedBox(height: 8),
-                      Text.rich(TextSpan(children: [
-                        TextSpan(text: '关怀妈妈的第 '),
-                        TextSpan(
-                            text: '12',
-                            style: TextStyle(
-                                color: FubaoColors.mintStrong,
-                                fontWeight: FontWeight.w900)),
-                        TextSpan(text: ' 天')
-                      ])),
-                      SizedBox(height: 8),
-                      Row(children: [
-                        Container(
-                          key: Key('device-online-dot'),
-                          width: 9,
-                          height: 9,
-                          decoration: BoxDecoration(
-                            color: FubaoColors.mintStrong,
-                            shape: BoxShape.circle,
-                          ),
+                              color: spark.lit
+                                  ? FubaoColors.mintStrong
+                                  : FubaoColors.inkMuted,
+                              fontWeight: FontWeight.w900)),
+                      const TextSpan(text: ' 天')
+                    ])),
+                    SizedBox(height: 8),
+                    Row(children: [
+                      Container(
+                        key: Key('device-online-dot'),
+                        width: 9,
+                        height: 9,
+                        decoration: BoxDecoration(
+                          color: FubaoColors.mintStrong,
+                          shape: BoxShape.circle,
                         ),
-                        SizedBox(width: 7),
-                        Text('设备在线',
-                            style: TextStyle(
-                                color: FubaoColors.inkMuted, fontSize: 12)),
-                      ]),
-                    ])),
-                const Icon(Icons.chevron_right_rounded,
-                    color: FubaoColors.inkMuted),
-              ]),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Color(0xFFF0FAF6), Color(0xFFFAFDFB)]),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: FubaoColors.borderMint),
-              ),
-              child: const Row(children: [
-                FubaoIllustrationAsset(FubaoIllustration.spark,
-                    width: 130, height: 100),
-                SizedBox(width: 12),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text('我的成就',
+                      ),
+                      SizedBox(width: 7),
+                      Text('设备在线',
                           style: TextStyle(
-                              fontSize: 19, fontWeight: FontWeight.w900)),
-                      SizedBox(height: 6),
-                      Text.rich(TextSpan(children: [
-                        TextSpan(text: '已连续互动 '),
-                        TextSpan(
-                            text: '12',
-                            style: TextStyle(
-                                color: FubaoColors.mintStrong,
-                                fontWeight: FontWeight.w900)),
-                        TextSpan(text: ' 天')
-                      ])),
-                      SizedBox(height: 5),
-                      Text('坚持关心，让爱每天都在发光',
-                          style: TextStyle(
-                              color: FubaoColors.inkMuted, fontSize: 11)),
-                    ])),
-              ]),
-            ),
-            const SizedBox(height: 14),
-            _SettingsGroup(onTap: (kind) => _open(context, kind), items: const [
-              (Icons.groups_rounded, '家庭成员', FubaoColors.mintStrong),
-              (Icons.folder_copy_rounded, '健康档案', FubaoColors.orangeStrong),
-              (Icons.watch_rounded, '设备管理', FubaoColors.mintStrong),
+                              color: FubaoColors.inkMuted, fontSize: 12)),
+                    ]),
+                  ])),
+              const Icon(Icons.chevron_right_rounded,
+                  color: FubaoColors.inkMuted),
             ]),
-            const SizedBox(height: 12),
-            _SettingsGroup(onTap: (kind) => _open(context, kind), items: const [
-              (
-                Icons.notifications_active_rounded,
-                '提醒与勿扰',
-                FubaoColors.orangeStrong
-              ),
-              (Icons.shield_rounded, '隐私与数据', FubaoColors.mintStrong),
-              (Icons.chat_bubble_rounded, '帮助与反馈', FubaoColors.orangeStrong),
-            ]),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                  color: const Color(0xFFF4FBF7),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: FubaoColors.borderMint)),
-              child: const Row(children: [
-                FubaoIllustrationAsset(FubaoIllustration.plants,
-                    width: 86, height: 62),
-                SizedBox(width: 14),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text('一起成长的小约定',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w800)),
-                      SizedBox(height: 4),
-                      Text('每天进步一点点，我们都很棒！',
-                          style: TextStyle(
-                              color: FubaoColors.inkMuted, fontSize: 11)),
-                    ])),
-                Icon(Icons.favorite_rounded, color: FubaoColors.mintStrong),
-              ]),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                  colors: [Color(0xFFF0FAF6), Color(0xFFFAFDFB)]),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: FubaoColors.borderMint),
             ),
-          ],
-        ),
-      );
+            child: Row(children: [
+              SparkIllustration(spark: spark, width: 130, height: 100),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text('我的成就',
+                        style: TextStyle(
+                            fontSize: 19, fontWeight: FontWeight.w900)),
+                    SizedBox(height: 6),
+                    Text.rich(TextSpan(children: [
+                      const TextSpan(text: '已连续互动 '),
+                      TextSpan(
+                          text: '${spark.streakDays}',
+                          style: TextStyle(
+                              color: spark.lit
+                                  ? FubaoColors.mintStrong
+                                  : FubaoColors.inkMuted,
+                              fontWeight: FontWeight.w900)),
+                      const TextSpan(text: ' 天')
+                    ])),
+                    SizedBox(height: 5),
+                    Text('坚持关心，让爱每天都在发光',
+                        style: TextStyle(
+                            color: FubaoColors.inkMuted, fontSize: 11)),
+                  ])),
+            ]),
+          ),
+          const SizedBox(height: 14),
+          _SettingsGroup(onTap: (kind) => _open(context, kind), items: const [
+            (Icons.groups_rounded, '家庭成员', FubaoColors.mintStrong),
+            (Icons.folder_copy_rounded, '健康档案', FubaoColors.orangeStrong),
+            (Icons.watch_rounded, '设备管理', FubaoColors.mintStrong),
+          ]),
+          const SizedBox(height: 12),
+          _SettingsGroup(onTap: (kind) => _open(context, kind), items: const [
+            (
+              Icons.notifications_active_rounded,
+              '提醒与勿扰',
+              FubaoColors.orangeStrong
+            ),
+            (Icons.shield_rounded, '隐私与数据', FubaoColors.mintStrong),
+            (Icons.chat_bubble_rounded, '帮助与反馈', FubaoColors.orangeStrong),
+          ]),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: const Color(0xFFF4FBF7),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: FubaoColors.borderMint)),
+            child: const Row(children: [
+              FubaoIllustrationAsset(FubaoIllustration.plants,
+                  width: 86, height: 62),
+              SizedBox(width: 14),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text('一起成长的小约定',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800)),
+                    SizedBox(height: 4),
+                    Text('每天进步一点点，我们都很棒！',
+                        style: TextStyle(
+                            color: FubaoColors.inkMuted, fontSize: 11)),
+                  ])),
+              Icon(Icons.favorite_rounded, color: FubaoColors.mintStrong),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _open(BuildContext context, ProfileSettingKind kind) {
     Navigator.push(

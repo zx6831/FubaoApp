@@ -52,7 +52,7 @@ export class HealthService {
       this.memory.healthReadingsV1.set(reading.id, reading);
     }
     const alert = await this.maybeCreateAlert(family.id, elder.userId, child?.userId, reading.id, body.type, value);
-    await this.markActivity(family.id, user.role);
+    if (user.role === 'child') await this.markActivity(family.id, 'child');
     return { reading: this.serializeReading(reading), alert: alert ? this.serializeAlert(alert) : null };
   }
 
@@ -121,7 +121,7 @@ export class HealthService {
 
   async currentSpark(user: AuthenticatedUser) {
     const family = await this.families.current(user);
-    await this.markActivity(family.id, user.role);
+    if (user.role === 'child') await this.markActivity(family.id, 'child');
     const activities = await this.activities(family.id);
     const today = this.today();
     const todayActivity = activities.find((item) => this.dateString(item.date) === today);

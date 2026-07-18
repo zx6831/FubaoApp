@@ -46,24 +46,33 @@ class _ElderPlansPageState extends State<ElderPlansPage> {
         child: AnimatedBuilder(
           animation: widget.repository,
           builder: (context, _) {
-            final medicine = _primaryPlanTask(widget.repository.tasks);
-            final upcoming = medicine == null
-                ? const <HealthTask>[]
-                : widget.repository.tasks
-                    .where((task) => task.id != medicine.id)
-                    .toList();
+            final ordered = [...widget.repository.tasks]..sort((a, b) {
+                if (a.isCompleted != b.isCompleted) {
+                  return a.isCompleted ? 1 : -1;
+                }
+                return _taskMinutes(a).compareTo(_taskMinutes(b));
+              });
+            HealthTask? nextTask;
+            for (final task in ordered) {
+              if (!task.isCompleted && !task.isSkipped) {
+                nextTask = task;
+                break;
+              }
+            }
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
               children: [
-                const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                          child: Text('我的计划',
-                              style: TextStyle(
-                                  fontSize: 39, fontWeight: FontWeight.w900))),
-                      ReadAloudButton(text: '我的计划。今天有吃药、散步和记录心情。'),
-                    ]),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Expanded(
+                      child: Text('我的计划',
+                          style: TextStyle(
+                              fontSize: 39, fontWeight: FontWeight.w900))),
+                  ReadAloudButton(
+                    text: ordered.isEmpty
+                        ? '我的计划。今天还没有任务。'
+                        : '我的计划。今天共有${ordered.length}项任务。',
+                  ),
+                ]),
                 const SizedBox(height: 22),
                 _ElderWeekStrip(
                   today: today,
@@ -79,11 +88,27 @@ class _ElderPlansPageState extends State<ElderPlansPage> {
                   ),
                 ),
                 const SizedBox(height: 22),
+                if (nextTask != null) ...[
+                  const Text('接下来的事',
+                      style:
+                          TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 12),
+                  _ElderTaskCard(
+                    task: nextTask,
+                    illustration: _illustrationFor(nextTask.kind),
+                    onTap: () => _completePlanTask(
+                      context,
+                      widget.repository,
+                      nextTask!,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                ],
                 const Text('今天的任务',
                     style:
                         TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 12),
-                if (medicine == null)
+                if (ordered.isEmpty)
                   FubaoCard(
                     padding: const EdgeInsets.all(26),
                     child: const Center(
@@ -92,34 +117,19 @@ class _ElderPlansPageState extends State<ElderPlansPage> {
                                 fontSize: 24, fontWeight: FontWeight.w800))),
                   )
                 else
-                  _ElderTaskCard(
-                    task: medicine,
-                    illustration: FubaoIllustration.pill,
-                    completed: medicine.isCompleted,
-                    onTap: () => _completePlanTask(
-                      context,
-                      widget.repository,
-                      medicine,
+                  for (var i = 0; i < ordered.length; i++) ...[
+                    _ElderTaskCard(
+                      task: ordered[i],
+                      illustration: _illustrationFor(ordered[i].kind),
+                      completed: ordered[i].isCompleted,
+                      onTap: () => _completePlanTask(
+                        context,
+                        widget.repository,
+                        ordered[i],
+                      ),
                     ),
-                  ),
-                const SizedBox(height: 22),
-                const Text('接下来的事',
-                    style:
-                        TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
-                const SizedBox(height: 12),
-                for (var i = 0; i < upcoming.length; i++) ...[
-                  _ElderTaskCard(
-                    task: upcoming[i],
-                    illustration: _illustrationFor(upcoming[i].kind),
-                    completed: upcoming[i].isCompleted,
-                    onTap: () => _completePlanTask(
-                      context,
-                      widget.repository,
-                      upcoming[i],
-                    ),
-                  ),
-                  if (i != upcoming.length - 1) const SizedBox(height: 12),
-                ],
+                    if (i != ordered.length - 1) const SizedBox(height: 12),
+                  ],
               ],
             );
           },
@@ -127,12 +137,14 @@ class _ElderPlansPageState extends State<ElderPlansPage> {
       );
 }
 
-HealthTask? _primaryPlanTask(List<HealthTask> tasks) {
-  if (tasks.isEmpty) return null;
-  for (final task in tasks) {
-    if (task.kind == TaskKind.medicine) return task;
-  }
-  return tasks.first;
+int _taskMinutes(HealthTask task) {
+  final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(task.timeLabel);
+  if (match == null) return 24 * 60;
+  var hour = int.parse(match.group(1)!);
+  final minute = int.parse(match.group(2)!);
+  if (task.timeLabel.contains('下午') && hour < 12) hour += 12;
+  if (task.timeLabel.contains('晚上') && hour < 12) hour += 12;
+  return hour * 60 + minute;
 }
 
 FubaoIllustration _illustrationFor(TaskKind kind) => switch (kind) {
@@ -263,7 +275,7 @@ Future<void> _completePlanTask(
     _ => null,
   };
   if (metric != null) {
-    await showHealthRecordDialog(context, repository, metric);
+    await showHealthRecordDialog(context, repository, metric, elder: true);
   } else {
     await repository.setTaskCompleted(task.id, true);
   }

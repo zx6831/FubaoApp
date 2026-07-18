@@ -24,9 +24,10 @@ describe('Topics, messages, feedback, and privacy', () => {
       .expect(({ body }) => expect(body.data.copied).toBe(true));
   });
 
-  it('provides typed messages and marks them read', async () => {
+  it('shows only real interaction messages and marks them read', async () => {
     const messages = await request(app.getHttpServer()).get('/api/messages').set(auth()).expect(200);
-    expect(messages.body.data.items.map((item: { type: string }) => item.type)).toEqual(expect.arrayContaining(['weeklyReport', 'insight', 'system']));
+    expect(messages.body.data.items).toHaveLength(1);
+    expect(messages.body.data.items[0]).toMatchObject({ type: 'insight', title: '已使用今日话题' });
     const id = messages.body.data.items[0].id;
     await request(app.getHttpServer()).patch(`/api/messages/${id}/read`).set(auth()).expect(200)
       .expect(({ body }) => expect(body.data.readAt).toBeTruthy());

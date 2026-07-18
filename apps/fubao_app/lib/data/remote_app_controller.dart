@@ -78,6 +78,8 @@ class RemoteAppController extends ChangeNotifier {
     required double? heightCm,
     required double? weightKg,
     required List<String> chronicConditions,
+    required String medicationHistory,
+    required String medicalHistory,
     required String emergencyContact,
   }) =>
       _run(() async {
@@ -86,8 +88,12 @@ class RemoteAppController extends ChangeNotifier {
           if (heightCm != null) 'heightCm': heightCm,
           if (weightKg != null) 'weightKg': weightKg,
           'chronicConditions': chronicConditions,
-          'medicationHistory': <String, dynamic>{},
-          'medicalHistory': <String, dynamic>{},
+          'medicationHistory': medicationHistory.isEmpty
+              ? <String, dynamic>{}
+              : <String, dynamic>{'summary': medicationHistory},
+          'medicalHistory': medicalHistory.isEmpty
+              ? <String, dynamic>{}
+              : <String, dynamic>{'summary': medicalHistory},
           if (emergencyContact.isNotEmpty) 'emergencyContact': emergencyContact,
           'consentConfirmed': true,
         });

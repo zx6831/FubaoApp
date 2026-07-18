@@ -29,6 +29,8 @@ class OnboardingPage extends StatefulWidget {
     required double? heightCm,
     required double? weightKg,
     required List<String> chronicConditions,
+    required String medicationHistory,
+    required String medicalHistory,
     required String emergencyContact,
   }) onSaveProfile;
   final Future<bool> Function() onDiscoverDevice;
@@ -45,6 +47,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final _height = TextEditingController();
   final _weight = TextEditingController();
   final _conditions = TextEditingController(text: '高血压');
+  final _medications = TextEditingController();
+  final _medicalHistory = TextEditingController();
   final _emergency = TextEditingController();
   final _network = TextEditingController(text: '家庭 Wi-Fi');
   bool _consent = false;
@@ -57,6 +61,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
       _height,
       _weight,
       _conditions,
+      _medications,
+      _medicalHistory,
       _emergency,
       _network
     ]) {
@@ -145,6 +151,22 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 labelText: '慢病类型（用逗号分隔）', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         TextField(
+            controller: _medications,
+            maxLines: 2,
+            decoration: const InputDecoration(
+                labelText: '用药史',
+                hintText: '例如：氨氯地平，每日一次',
+                border: OutlineInputBorder())),
+        const SizedBox(height: 12),
+        TextField(
+            controller: _medicalHistory,
+            maxLines: 2,
+            decoration: const InputDecoration(
+                labelText: '既往病史',
+                hintText: '例如：2022 年住院治疗心脏病',
+                border: OutlineInputBorder())),
+        const SizedBox(height: 12),
+        TextField(
             controller: _emergency,
             decoration: const InputDecoration(
                 labelText: '紧急联系人', border: OutlineInputBorder())),
@@ -170,6 +192,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           .map((value) => value.trim())
                           .where((value) => value.isNotEmpty)
                           .toList(),
+                      medicationHistory: _medications.text.trim(),
+                      medicalHistory: _medicalHistory.text.trim(),
                       emergencyContact: _emergency.text.trim(),
                     );
                   }),

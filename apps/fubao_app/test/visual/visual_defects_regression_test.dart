@@ -53,7 +53,10 @@ void main() {
       (tester) async {
     await pumpPhonePage(
       tester,
-      ChildProfilePage(onLogout: () async {}),
+      ChildProfilePage(
+        repository: DemoFubaoRepository(),
+        onLogout: () async {},
+      ),
     );
 
     final dot = find.byKey(const Key('device-online-dot'));

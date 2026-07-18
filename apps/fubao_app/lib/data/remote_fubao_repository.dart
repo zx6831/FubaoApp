@@ -328,6 +328,7 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
   @override
   Future<void> markTopicCopied(String id) async {
     await _api.post('topics/$id/copied');
+    await refresh();
   }
 
   @override
@@ -379,6 +380,24 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
 
   @override
   Future<Map<String, dynamic>> currentDevice() => _api.get('devices/current');
+
+  @override
+  Future<Map<String, dynamic>> discoverDevice() async {
+    final data = await _api.post('devices/discover');
+    final devices = data['devices'] as List? ?? const [];
+    if (devices.isEmpty) return const {};
+    return (devices.first as Map).cast<String, dynamic>();
+  }
+
+  @override
+  Future<Map<String, dynamic>> activateDevice(
+    String serialNumber,
+    String networkName,
+  ) =>
+      _api.post('devices/activate', body: {
+        'serialNumber': serialNumber,
+        'networkName': networkName,
+      });
 
   @override
   Future<Map<String, dynamic>> updateDeviceSettings(

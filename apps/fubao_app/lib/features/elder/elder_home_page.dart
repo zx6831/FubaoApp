@@ -23,7 +23,7 @@ class ElderHomePage extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
               children: [
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Expanded(
+                  Expanded(
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -33,7 +33,7 @@ class ElderHomePage extends StatelessWidget {
                                 fontWeight: FontWeight.w900,
                                 height: 1.2)),
                         SizedBox(height: 14),
-                        SparkBadge(compact: true),
+                        SparkBadge(spark: repository.spark, compact: true),
                       ])),
                   ReadAloudButton(
                     text: task == null
@@ -57,11 +57,7 @@ class ElderHomePage extends StatelessWidget {
                           style: TextStyle(
                               color: FubaoColors.inkMuted, fontSize: 18)),
                       const SizedBox(height: 18),
-                      OutlinedButton.icon(
-                        onPressed: repository.refresh,
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: const Text('刷新看看'),
-                      ),
+                      _AnimatedRefreshButton(onRefresh: repository.refresh),
                     ]),
                   )
                 else
@@ -171,7 +167,7 @@ class ElderHomePage extends StatelessWidget {
                         height: 104),
                     SizedBox(width: 14),
                     Expanded(
-                        child: Text('记录血压',
+                        child: Text('健康记录',
                             style: TextStyle(
                                 fontSize: 29, fontWeight: FontWeight.w900))),
                     CircleAvatar(
@@ -195,6 +191,54 @@ typedef _TaskPresentation = ({
   IconData completeIcon,
   HealthMetric? metric,
 });
+
+class _AnimatedRefreshButton extends StatefulWidget {
+  const _AnimatedRefreshButton({required this.onRefresh});
+  final Future<void> Function() onRefresh;
+
+  @override
+  State<_AnimatedRefreshButton> createState() => _AnimatedRefreshButtonState();
+}
+
+class _AnimatedRefreshButtonState extends State<_AnimatedRefreshButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 850),
+  );
+  bool refreshing = false;
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    if (refreshing) return;
+    setState(() => refreshing = true);
+    controller.repeat();
+    try {
+      await widget.onRefresh();
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+    } finally {
+      controller.stop();
+      controller.reset();
+      if (mounted) setState(() => refreshing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(
+        onPressed: refreshing ? null : _refresh,
+        icon: RotationTransition(
+          key: const Key('elder-refresh-spinner'),
+          turns: controller,
+          child: const Icon(Icons.refresh_rounded),
+        ),
+        label: Text(refreshing ? '正在刷新' : '刷新看看'),
+      );
+}
 
 _TaskPresentation _presentationFor(HealthTask task) => switch (task.kind) {
       TaskKind.medicine => (
@@ -256,7 +300,7 @@ Future<void> _completeTask(
 ) async {
   final metric = presentation.metric;
   if (metric != null) {
-    await showHealthRecordDialog(context, repository, metric);
+    await showHealthRecordDialog(context, repository, metric, elder: true);
     return;
   }
   await repository.setTaskCompleted(task.id, true);

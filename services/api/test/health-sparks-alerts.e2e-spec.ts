@@ -73,9 +73,20 @@ describe('Health readings, care alerts, and family spark', () => {
       .expect(({ body }) => expect(body.data.status).toBe('closed'));
   });
 
-  it('counts health recording as elder activity and lights after child activity', async () => {
+  it('lights only after child activity and an elder task completion', async () => {
     const child = await request(app.getHttpServer()).post('/api/sparks/activity').set(auth(childToken)).expect(201);
-    expect(child.body.data).toMatchObject({ lit: true, childActive: true, elderActive: true, streakDays: 1 });
+    expect(child.body.data).toMatchObject({ lit: false, childActive: true, elderActive: false, streakDays: 0 });
+
+    await request(app.getHttpServer()).post('/api/plans').set(auth(childToken)).send({
+      kind: 'bloodPressure', title: '血压管理', startsOn: today(), timezone: 'Asia/Shanghai',
+      schedule: { time: '08:30', daysOfWeek: [1, 2, 3, 4, 5, 6, 7] },
+    }).expect(201);
+    const tasks = await request(app.getHttpServer()).get('/api/tasks/today').set(auth(elderToken)).expect(200);
+    const taskId = tasks.body.data.items[0].id as string;
+    await request(app.getHttpServer()).post(`/api/tasks/${taskId}/complete`)
+      .set(auth(elderToken)).set('Idempotency-Key', `spark-${taskId}`)
+      .send({ data: { systolic: 128, diastolic: 82 } }).expect(201);
+
     const elder = await request(app.getHttpServer()).post('/api/sparks/activity').set(auth(elderToken)).expect(201);
     expect(elder.body.data).toMatchObject({ lit: true, childActive: true, elderActive: true, streakDays: 1 });
     const history = await request(app.getHttpServer())

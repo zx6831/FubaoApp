@@ -237,41 +237,53 @@ class _MessageHistory extends StatelessWidget {
             ),
           ]),
           const SizedBox(height: 8),
-          _HistoryRow(
-              image: FubaoIllustration.coffee,
-              title: '轻松聊聊',
-              text: '今天有没有一件让你觉得开心的事？',
-              time: '今天 08:30',
-              onTap: () => _openDetail(
-                    context,
-                    '轻松聊聊',
-                    '今天有没有一件让你觉得开心的事？',
-                  )),
-          const Divider(),
-          _HistoryRow(
-              image: FubaoIllustration.sofa,
-              title: '互相支持',
-              text: '遇到小困难也没关系，我们一起想想办法吧。',
-              time: '昨天 21:10',
-              onTap: () => _openDetail(
-                    context,
-                    '互相支持',
-                    '遇到小困难也没关系，我们一起想想办法吧。',
-                  )),
+          if (repository.messages.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Column(children: [
+                Icon(Icons.mark_chat_unread_outlined,
+                    color: FubaoColors.inkMuted, size: 34),
+                SizedBox(height: 8),
+                Text('还没有互动消息', style: TextStyle(fontWeight: FontWeight.w800)),
+                SizedBox(height: 4),
+                Text('使用今日话题、生成周报或出现健康提醒后会记录在这里',
+                    textAlign: TextAlign.center,
+                    style:
+                        TextStyle(color: FubaoColors.inkMuted, fontSize: 11)),
+              ]),
+            )
+          else
+            for (var index = 0;
+                index < repository.messages.length.clamp(0, 2);
+                index++) ...[
+              _HistoryRow(
+                image: _messageIllustration(repository.messages[index].type),
+                title: repository.messages[index].title,
+                text: repository.messages[index].body,
+                time: _messageTime(repository.messages[index].createdAt),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => MessageDetailPage.fromMessage(
+                      repository.messages[index],
+                    ),
+                  ),
+                ),
+              ),
+              if (index == 0 && repository.messages.length > 1) const Divider(),
+            ],
         ]),
       );
-
-  void _openDetail(BuildContext context, String title, String text) {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => MessageDetailPage(
-        title: title,
-        body: text,
-        category: '家庭话题',
-        createdAt: DateTime.now(),
-      ),
-    ));
-  }
 }
+
+FubaoIllustration _messageIllustration(AppMessageType type) => switch (type) {
+      AppMessageType.alert => FubaoIllustration.sofa,
+      AppMessageType.weeklyReport => FubaoIllustration.clipboard,
+      AppMessageType.system => FubaoIllustration.plants,
+      AppMessageType.insight => FubaoIllustration.coffee,
+    };
+
+String _messageTime(DateTime value) =>
+    '${value.month}/${value.day} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 
 class _HistoryRow extends StatelessWidget {
   const _HistoryRow(

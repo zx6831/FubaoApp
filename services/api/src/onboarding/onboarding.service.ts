@@ -133,10 +133,12 @@ export class OnboardingService {
     if (this.prisma.isEnabled()) {
       const device = await this.prisma.device.findUnique({ where: { familyId: context.familyId }, include: { settings: true } });
       if (!device) throw new NotFoundException('尚未绑定设备');
+      if (device.status === 'unbound') return { status: 'unbound' };
       return this.serializeDevice(device);
     }
     const device = this.memory.devices.get(context.familyId);
     if (!device) throw new NotFoundException('尚未绑定设备');
+    if (device.status === 'unbound') return { status: 'unbound' };
     return this.serializeDevice(device);
   }
 
@@ -204,15 +206,12 @@ export class OnboardingService {
       if (!device) throw new NotFoundException('尚未绑定设备');
       return this.serializeDevice(await this.prisma.device.update({
         where: { id: device.id },
-        data: { status: 'discovered', activatedAt: null, lastOnlineAt: null, settings: { upsert: { create: defaults, update: defaults } }, events: { create: { type: 'factoryReset' } } },
+        data: { settings: { upsert: { create: defaults, update: defaults } }, events: { create: { type: 'factoryReset' } } },
         include: { settings: true },
       }));
     }
     const device = this.memory.devices.get(context.familyId);
     if (!device) throw new NotFoundException('尚未绑定设备');
-    device.status = 'discovered';
-    device.activatedAt = null;
-    device.lastOnlineAt = null;
     device.settings = defaults;
     return this.serializeDevice(device);
   }

@@ -188,11 +188,11 @@ export class PlansService {
       const existingByKey = await this.prisma.taskRecord.findUnique({ where: { idempotencyKey: key }, include: { task: true } });
       if (existingByKey) {
         if (existingByKey.taskId !== taskId) throw new ConflictException('幂等键已用于其他任务');
-        await this.health.markActivity(family.id, 'elder');
+        if (status === 'completed') await this.health.markActivity(family.id, 'elder');
         return this.serializeTask({ ...existingByKey.task, record: existingByKey });
       }
       if (task.record) {
-        await this.health.markActivity(family.id, 'elder');
+        if (status === 'completed') await this.health.markActivity(family.id, 'elder');
         return this.serializeTask(task);
       }
       const completedAt = new Date();
@@ -211,7 +211,7 @@ export class PlansService {
         const updated = await tx.dailyTask.update({ where: { id: taskId }, data: { status } });
         return { ...updated, record };
       });
-      await this.health.markActivity(family.id, 'elder');
+      if (status === 'completed') await this.health.markActivity(family.id, 'elder');
       return this.serializeTask(result);
     }
 
@@ -222,11 +222,11 @@ export class PlansService {
     const existingByKey = this.memory.taskRecordsByIdempotencyKey.get(key);
     if (existingByKey) {
       if (task.record?.id !== existingByKey.id) throw new ConflictException('幂等键已用于其他任务');
-      await this.health.markActivity(family.id, 'elder');
+      if (status === 'completed') await this.health.markActivity(family.id, 'elder');
       return this.serializeTask(task);
     }
     if (task.record) {
-      await this.health.markActivity(family.id, 'elder');
+      if (status === 'completed') await this.health.markActivity(family.id, 'elder');
       return this.serializeTask(task);
     }
     const record = {
@@ -241,7 +241,7 @@ export class PlansService {
     task.record = record;
     task.updatedAt = new Date();
     this.memory.taskRecordsByIdempotencyKey.set(key, record);
-    await this.health.markActivity(family.id, 'elder');
+    if (status === 'completed') await this.health.markActivity(family.id, 'elder');
     return this.serializeTask(task);
   }
 

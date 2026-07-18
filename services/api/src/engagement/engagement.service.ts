@@ -37,10 +37,15 @@ export class EngagementService implements OnModuleInit, OnModuleDestroy {
     const family = await this.families.current(user);
     const date = this.utcToday();
     if (this.prisma.isEnabled()) {
+      const templates = await this.topicTemplates(family.id);
       let items = await this.prisma.topic.findMany({ where: { familyId: family.id, date }, orderBy: { createdAt: 'asc' } });
       if (!items.length) {
-        const templates = await this.topicTemplates(family.id);
         await this.prisma.topic.createMany({ data: templates.map((item) => ({ familyId: family.id, date, ...item })) });
+        items = await this.prisma.topic.findMany({ where: { familyId: family.id, date }, orderBy: { createdAt: 'asc' } });
+      } else {
+        await Promise.all(items.slice(0, templates.length).map((item, index) =>
+          this.prisma.topic.update({ where: { id: item.id }, data: templates[index] }),
+        ));
         items = await this.prisma.topic.findMany({ where: { familyId: family.id, date }, orderBy: { createdAt: 'asc' } });
       }
       return { items: items.map((item) => this.topicJson(item)) };
@@ -50,6 +55,9 @@ export class EngagementService implements OnModuleInit, OnModuleDestroy {
     if (!items.length) {
       items = (await this.topicTemplates(family.id)).map((item) => ({ id: randomUUID(), key, ...item, copiedAt: null, createdAt: new Date() }));
       for (const item of items) this.memory.engagementTopics.set(item.id, item);
+    } else {
+      const templates = await this.topicTemplates(family.id);
+      items.slice(0, templates.length).forEach((item, index) => Object.assign(item, templates[index]));
     }
     return { items: items.map((item) => this.topicJson(item)) };
   }
@@ -60,10 +68,30 @@ export class EngagementService implements OnModuleInit, OnModuleDestroy {
       const item = await this.prisma.topic.findFirst({ where: { id, familyId: family.id } });
       if (!item) throw new NotFoundException('话题不存在');
       await this.prisma.topic.update({ where: { id }, data: { copiedAt: new Date() } });
+      await this.prisma.message.create({ data: {
+        familyId: family.id,
+        userId: user.sub,
+        type: 'insight',
+        title: '已使用今日话题',
+        body: item.title,
+        payload: { topicId: item.id },
+      } });
     } else {
       const item = this.memory.engagementTopics.get(id);
       if (!item || item.key.split(':')[0] !== family.id) throw new NotFoundException('话题不存在');
       item.copiedAt = new Date();
+      const messageId = randomUUID();
+      this.memory.engagementMessages.set(messageId, {
+        id: messageId,
+        familyId: family.id,
+        userId: user.sub,
+        type: 'insight',
+        title: '已使用今日话题',
+        body: item.title,
+        payload: { topicId: item.id },
+        readAt: null,
+        createdAt: new Date(),
+      });
     }
     return { copied: true, topicId: id };
   }
@@ -71,18 +99,10 @@ export class EngagementService implements OnModuleInit, OnModuleDestroy {
   async messages(user: AuthenticatedUser, type?: 'weeklyReport' | 'alert' | 'system' | 'insight') {
     const family = await this.families.current(user);
     if (this.prisma.isEnabled()) {
-      let items = await this.prisma.message.findMany({ where: { familyId: family.id, userId: user.sub, type }, orderBy: { createdAt: 'desc' } });
-      if (!items.length && !type) {
-        await this.prisma.message.createMany({ data: this.defaultMessages(family.id, user.sub) });
-        items = await this.prisma.message.findMany({ where: { familyId: family.id, userId: user.sub }, orderBy: { createdAt: 'desc' } });
-      }
+      const items = await this.prisma.message.findMany({ where: { familyId: family.id, userId: user.sub, type }, orderBy: { createdAt: 'desc' } });
       return { items: items.map((item) => this.messageJson(item)) };
     }
     let items = [...this.memory.engagementMessages.values()].filter((item) => item.familyId === family.id && item.userId === user.sub);
-    if (!items.length) {
-      items = this.defaultMessages(family.id, user.sub).map((item) => ({ id: randomUUID(), ...item, readAt: null, createdAt: new Date() }));
-      for (const item of items) this.memory.engagementMessages.set(item.id, item);
-    }
     if (type) items = items.filter((item) => item.type === type);
     return { items: items.map((item) => this.messageJson(item)) };
   }
@@ -258,11 +278,6 @@ export class EngagementService implements OnModuleInit, OnModuleDestroy {
       { title: '从散步和心情聊起', behavior: '关注今天的小事和感受', analysis: '轻松分享日常，拉近彼此距离。', suggestedWords: '今天有没有一件让你觉得开心的事？' },
     ];
   }
-  private defaultMessages(familyId: string, userId: string) { return [
-    { familyId, userId, type: 'system' as const, title: '欢迎使用福豹', body: '家庭、健康档案和设备已准备好，可以开始今天的关怀计划。' },
-    { familyId, userId, type: 'weeklyReport' as const, title: '本周健康周报已生成', body: '看看本周任务完成与健康记录变化。' },
-    { familyId, userId, type: 'insight' as const, title: '健康小知识', body: '规律记录比单次数字更有参考价值。' },
-  ]; }
   private topicJson(x: any) { return { id: x.id, title: x.title, description: x.analysis, behavior: x.behavior, suggestedWords: x.suggestedWords, copiedAt: x.copiedAt?.toISOString() ?? null }; }
   private messageJson(x: any) { return { id: x.id, type: x.type, title: x.title, body: x.body, payload: x.payload ?? null, readAt: x.readAt?.toISOString() ?? null, createdAt: x.createdAt.toISOString() }; }
   private utcToday() { const value = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); return new Date(`${value}T00:00:00.000Z`); }

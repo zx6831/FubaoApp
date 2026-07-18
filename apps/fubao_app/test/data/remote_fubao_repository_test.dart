@@ -290,7 +290,11 @@ void main() {
           return success({'id': 'device-1', 'status': 'offline'});
         }
         if (request.url.path.endsWith('/devices/factory-reset')) {
-          return success({'id': 'device-1', 'status': 'discovered'});
+          return success({
+            'id': 'device-1',
+            'status': 'offline',
+            'settings': {'volume': 60, 'speechRate': 50},
+          });
         }
         if (request.url.path.endsWith('/devices/current') &&
             request.method == 'DELETE') {
@@ -332,7 +336,7 @@ void main() {
       60,
     );
     expect((await repository.setDeviceOnline(false))['status'], 'offline');
-    expect((await repository.factoryResetDevice())['status'], 'discovered');
+    expect((await repository.factoryResetDevice())['status'], 'offline');
     await repository.unbindDevice();
 
     expect(exported['generatedAt'], isNotNull);

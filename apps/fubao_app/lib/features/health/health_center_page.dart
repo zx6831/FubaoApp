@@ -76,18 +76,21 @@ class HealthCenterPage extends StatelessWidget {
       );
 
   Future<void> _record(BuildContext context, HealthMetric metric) async {
-    await showHealthRecordDialog(context, repository, metric);
+    await showHealthRecordDialog(context, repository, metric, elder: elder);
   }
 }
 
 Future<bool> showHealthRecordDialog(
   BuildContext context,
   FubaoRepository repository,
-  HealthMetric metric,
-) async {
+  HealthMetric metric, {
+  bool elder = false,
+}) async {
   final result = await showDialog<Map<String, dynamic>>(
     context: context,
-    builder: (_) => _RecordHealthDialog(metric: metric),
+    builder: (_) => elder
+        ? _ElderRecordHealthDialog(metric: metric)
+        : _RecordHealthDialog(metric: metric),
   );
   if (result == null || !context.mounted) return false;
   final confirmed = await showDialog<bool>(
@@ -111,6 +114,188 @@ Future<bool> showHealthRecordDialog(
   await repository.recordHealth(metric, result);
   return true;
 }
+
+class _ElderRecordHealthDialog extends StatefulWidget {
+  const _ElderRecordHealthDialog({required this.metric});
+  final HealthMetric metric;
+
+  @override
+  State<_ElderRecordHealthDialog> createState() =>
+      _ElderRecordHealthDialogState();
+}
+
+class _ElderRecordHealthDialogState extends State<_ElderRecordHealthDialog> {
+  Object? primary;
+  Object? secondary;
+  bool custom = false;
+  String customPrimary = '';
+  String customSecondary = '';
+  String? errorText;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text('记录${_metricLabel(widget.metric)}'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_elderPrompt(widget.metric),
+                    style: const TextStyle(
+                        color: FubaoColors.inkMuted,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 14),
+                if (!custom) ..._selectionFields(),
+                if (custom) ..._customFields(),
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    custom = !custom;
+                    errorText = null;
+                  }),
+                  icon: Icon(
+                      custom ? Icons.grid_view_rounded : Icons.edit_outlined),
+                  label: Text(custom ? '返回快速选择' : '自定义输入'),
+                ),
+                if (errorText != null)
+                  Text(errorText!,
+                      style: const TextStyle(
+                          color: FubaoColors.orangeStrong,
+                          fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(onPressed: _next, child: const Text('下一步')),
+        ],
+      );
+
+  List<Widget> _selectionFields() => switch (widget.metric) {
+        HealthMetric.bloodPressure => [
+            _choiceTitle('收缩压（高压）'),
+            _numberChoices([100, 110, 120, 130, 140, 150, 160], true),
+            const SizedBox(height: 14),
+            _choiceTitle('舒张压（低压）'),
+            _numberChoices([60, 70, 80, 90, 100], false),
+          ],
+        HealthMetric.bloodGlucose => [
+            _numberChoices([4.5, 5.5, 6.5, 7.0, 8.0, 10.0], true),
+          ],
+        HealthMetric.weight => [
+            _numberChoices([45, 50, 55, 60, 65, 70, 75], true),
+          ],
+        HealthMetric.mood => [
+            Wrap(
+              spacing: 8,
+              runSpacing: 10,
+              children: [
+                for (final mood in const [
+                  ('开心', Icons.sentiment_very_satisfied_rounded),
+                  ('平静', Icons.sentiment_satisfied_alt_rounded),
+                  ('一般', Icons.sentiment_neutral_rounded),
+                  ('低落', Icons.sentiment_dissatisfied_rounded),
+                  ('不舒服', Icons.sick_outlined),
+                ])
+                  ChoiceChip(
+                    key: Key('elder-mood-${mood.$1}'),
+                    selected: primary == mood.$1,
+                    onSelected: (_) => setState(() => primary = mood.$1),
+                    avatar: Icon(mood.$2, color: FubaoColors.mintStrong),
+                    label: Text(mood.$1, style: const TextStyle(fontSize: 17)),
+                    padding: const EdgeInsets.all(10),
+                  ),
+              ],
+            ),
+          ],
+      };
+
+  Widget _choiceTitle(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(text,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+      );
+
+  Widget _numberChoices(List<num> values, bool first) => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final value in values)
+            ChoiceChip(
+              key: Key(
+                  'elder-${first ? 'primary' : 'secondary'}-${_numberLabel(value)}'),
+              selected: (first ? primary : secondary) == value,
+              onSelected: (_) => setState(() {
+                if (first) {
+                  primary = value;
+                } else {
+                  secondary = value;
+                }
+              }),
+              label: Text(_numberLabel(value),
+                  style: const TextStyle(fontSize: 18)),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+        ],
+      );
+
+  List<Widget> _customFields() => [
+        TextFormField(
+          key: const Key('record-primary-value'),
+          autofocus: true,
+          keyboardType: widget.metric == HealthMetric.mood
+              ? TextInputType.text
+              : const TextInputType.numberWithOptions(decimal: true),
+          decoration:
+              InputDecoration(labelText: _firstFieldLabel(widget.metric)),
+          onChanged: (value) => customPrimary = value,
+        ),
+        if (widget.metric == HealthMetric.bloodPressure) ...[
+          const SizedBox(height: 10),
+          TextFormField(
+            key: const Key('record-secondary-value'),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: '舒张压（低压）'),
+            onChanged: (value) => customSecondary = value,
+          ),
+        ],
+      ];
+
+  void _next() {
+    Object? first = primary;
+    Object? second = secondary;
+    if (custom) {
+      first = widget.metric == HealthMetric.mood
+          ? customPrimary.trim()
+          : double.tryParse(customPrimary.trim());
+      second = double.tryParse(customSecondary.trim());
+    }
+    final data = widget.metric == HealthMetric.bloodPressure
+        ? {'systolic': first, 'diastolic': second}
+        : widget.metric == HealthMetric.mood
+            ? {'text': first}
+            : {'value': first};
+    if (data.values.any((value) => value == null || value == '')) {
+      setState(() => errorText = '请选择一项，或使用自定义输入');
+      return;
+    }
+    Navigator.pop(context, data);
+  }
+}
+
+String _elderPrompt(HealthMetric metric) => switch (metric) {
+      HealthMetric.bloodPressure => '选择最接近血压仪读数的数值',
+      HealthMetric.bloodGlucose => '选择最接近血糖仪读数的数值',
+      HealthMetric.mood => '今天的心情更接近哪一种？',
+      HealthMetric.weight => '选择最接近当前体重的数值',
+    };
 
 class _RecordHealthDialog extends StatefulWidget {
   const _RecordHealthDialog({required this.metric});

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../data/fubao_repository.dart';
 import '../../data/accessibility_settings.dart';
+import '../../data/local_data_store.dart';
 import '../../data/notification_permission_service.dart';
 import '../../design/fubao_colors.dart';
 import '../../widgets/fubao_widgets.dart';
@@ -39,7 +40,10 @@ class ProfileSettingsPage extends StatefulWidget {
 
 class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   bool enabled = true;
+  bool healthReminderEnabled = true;
   bool dnd = true;
+  TimeOfDay dndStart = const TimeOfDay(hour: 22, minute: 0);
+  TimeOfDay dndEnd = const TimeOfDay(hour: 7, minute: 0);
   double value = 60;
   double speechRate = 50;
   bool deviceOnline = true;
@@ -51,11 +55,13 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   Map<String, dynamic> deviceData = const {};
   bool accessibilityInitialized = false;
   final feedbackController = TextEditingController();
+  final LocalDataStore reminderStore = PlatformLocalDataStore();
 
   @override
   void initState() {
     super.initState();
     if (widget.kind == ProfileSettingKind.notifications) enabled = false;
+    if (widget.kind == ProfileSettingKind.reminder) _loadReminderSettings();
     _loadData();
   }
 
@@ -126,14 +132,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       ProfileSettingKind.health => _healthContent(),
       ProfileSettingKind.device => _deviceContent(context),
       ProfileSettingKind.notifications => _notificationSwitches(),
-      ProfileSettingKind.reminder => [
-          ..._switches('每日任务提醒'),
-          SwitchListTile(
-              value: dnd,
-              onChanged: (next) => setState(() => dnd = next),
-              title: const Text('勿扰时段'),
-              subtitle: const Text('22:00 至次日 07:00')),
-        ],
+      ProfileSettingKind.reminder => _reminderContent(),
       ProfileSettingKind.privacy => [
           _info('健康数据', '仅家庭成员可查看'),
           _info('手机号', '已加密保存'),
@@ -367,65 +366,105 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     return text.isEmpty ? '未填写' : text;
   }
 
-  List<Widget> _deviceContent(BuildContext context) => [
-        _info(
-          deviceData['serialNumber']?.toString() ?? '福豹家庭智能体',
-          '${_deviceStatusLabel(deviceData['status']?.toString())} · 固件 ${deviceData['firmware'] ?? '--'}',
-        ),
-        const SizedBox(height: 18),
-        Text('设备音量 ${value.round()}%',
-            style: Theme.of(context).textTheme.titleMedium),
-        Slider(
-          value: value,
-          min: 0,
-          max: 100,
-          onChanged: busy ? null : (next) => setState(() => value = next),
-          onChangeEnd: busy ? null : (_) => _saveDeviceSettings(),
-        ),
-        Text('朗读速度 ${speechRate.round()}%',
-            style: Theme.of(context).textTheme.titleMedium),
-        Slider(
-          value: speechRate,
-          min: 0,
-          max: 100,
-          onChanged: busy ? null : (next) => setState(() => speechRate = next),
-          onChangeEnd: busy ? null : (_) => _saveDeviceSettings(),
-        ),
-        SwitchListTile(
-          value: deviceOnline,
-          onChanged: busy ? null : _setDeviceOnline,
-          title: const Text('模拟设备在线'),
-        ),
-        SwitchListTile(
-          value: dnd,
-          onChanged: busy
-              ? null
-              : (next) {
-                  setState(() => dnd = next);
-                  _saveDeviceSettings();
-                },
-          title: const Text('勿扰时段'),
-          subtitle: const Text('22:00 至次日 07:00'),
+  List<Widget> _deviceContent(BuildContext context) {
+    final status = deviceData['status']?.toString();
+    if (status == 'unbound' || deviceData.isEmpty) {
+      return [
+        const FubaoCard(
+          padding: EdgeInsets.all(24),
+          child: Column(children: [
+            Icon(Icons.radar_rounded, size: 52, color: FubaoColors.mintStrong),
+            SizedBox(height: 12),
+            Text('当前没有绑定设备',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            SizedBox(height: 6),
+            Text('发现附近的福豹设备后，可重新完成配网和激活',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: FubaoColors.inkMuted)),
+          ]),
         ),
         const SizedBox(height: 16),
-        OutlinedButton.icon(
-          onPressed: busy ? null : _factoryResetDevice,
-          icon: const Icon(Icons.restart_alt_rounded),
-          label: const Text('模拟恢复出厂设置'),
+        FilledButton.icon(
+          onPressed: busy ? null : _discoverDevice,
+          icon: const Icon(Icons.radar_rounded),
+          label: const Text('发现设备'),
         ),
-        const SizedBox(height: 10),
-        FilledButton.tonalIcon(
-          style:
-              FilledButton.styleFrom(foregroundColor: FubaoColors.orangeStrong),
-          onPressed: busy ? null : _unbindDevice,
-          icon: const Icon(Icons.link_off_rounded),
-          label: const Text('解绑设备'),
-        ),
-        const SizedBox(height: 8),
-        const Text('解绑后健康数据保留 90 天；恢复出厂会清除设备配置。',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12)),
       ];
+    }
+    if (status == 'discovered') {
+      return [
+        _info(
+          deviceData['serialNumber']?.toString() ?? '福豹家庭智能体',
+          '已发现 · 等待激活',
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: busy ? null : _activateDevice,
+          icon: const Icon(Icons.wifi_tethering_rounded),
+          label: const Text('模拟配网并激活'),
+        ),
+      ];
+    }
+    return [
+      _info(
+        deviceData['serialNumber']?.toString() ?? '福豹家庭智能体',
+        '${_deviceStatusLabel(deviceData['status']?.toString())} · 固件 ${deviceData['firmware'] ?? '--'}',
+      ),
+      const SizedBox(height: 18),
+      Text('设备音量 ${value.round()}%',
+          style: Theme.of(context).textTheme.titleMedium),
+      Slider(
+        value: value,
+        min: 0,
+        max: 100,
+        onChanged: busy ? null : (next) => setState(() => value = next),
+        onChangeEnd: busy ? null : (_) => _saveDeviceSettings(),
+      ),
+      Text('朗读速度 ${speechRate.round()}%',
+          style: Theme.of(context).textTheme.titleMedium),
+      Slider(
+        value: speechRate,
+        min: 0,
+        max: 100,
+        onChanged: busy ? null : (next) => setState(() => speechRate = next),
+        onChangeEnd: busy ? null : (_) => _saveDeviceSettings(),
+      ),
+      SwitchListTile(
+        value: deviceOnline,
+        onChanged: busy ? null : _setDeviceOnline,
+        title: const Text('模拟设备在线'),
+      ),
+      SwitchListTile(
+        value: dnd,
+        onChanged: busy
+            ? null
+            : (next) {
+                setState(() => dnd = next);
+                _saveDeviceSettings();
+              },
+        title: const Text('勿扰时段'),
+        subtitle: const Text('22:00 至次日 07:00'),
+      ),
+      const SizedBox(height: 16),
+      OutlinedButton.icon(
+        onPressed: busy ? null : _factoryResetDevice,
+        icon: const Icon(Icons.restart_alt_rounded),
+        label: const Text('模拟恢复出厂设置'),
+      ),
+      const SizedBox(height: 10),
+      FilledButton.tonalIcon(
+        style:
+            FilledButton.styleFrom(foregroundColor: FubaoColors.orangeStrong),
+        onPressed: busy ? null : _unbindDevice,
+        icon: const Icon(Icons.link_off_rounded),
+        label: const Text('解绑设备'),
+      ),
+      const SizedBox(height: 8),
+      const Text('解绑后健康数据保留 90 天；恢复出厂会清除设备配置。',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: FubaoColors.inkMuted, fontSize: 12)),
+    ];
+  }
 
   List<Widget> _contactContent() {
     final members = (familyData['members'] as List? ?? const [])
@@ -460,6 +499,37 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         _ => '状态未知',
       };
 
+  Future<void> _discoverDevice() async {
+    if (widget.repository == null || busy) return;
+    setState(() => busy = true);
+    try {
+      deviceData = await widget.repository!.discoverDevice();
+    } catch (error) {
+      if (mounted) _notice('发现设备失败：$error');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _activateDevice() async {
+    if (widget.repository == null || busy) return;
+    final serial = deviceData['serialNumber']?.toString();
+    if (serial == null || serial.isEmpty) return;
+    setState(() => busy = true);
+    try {
+      deviceData = await widget.repository!.activateDevice(
+        serial,
+        '家庭 Wi-Fi',
+      );
+      deviceOnline = deviceData['status'] == 'online';
+      if (mounted) _notice('设备已重新激活。');
+    } catch (error) {
+      if (mounted) _notice('设备激活失败：$error');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> _saveDeviceSettings() async {
     if (widget.repository == null || busy) return;
     setState(() => busy = true);
@@ -490,9 +560,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     try {
       healthData = await widget.repository!.updateElderHealthProfile({
         ...edited,
-        'medicationHistory':
-            healthData['medicationHistory'] ?? <String, dynamic>{},
-        'medicalHistory': healthData['medicalHistory'] ?? <String, dynamic>{},
         'consentConfirmed': true,
       });
       if (mounted) _notice('健康档案已更新。');
@@ -520,7 +587,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     if (widget.repository == null) return;
     final confirmed = await _confirm(
       title: '恢复出厂设置？',
-      content: '模拟设备会回到待激活状态，音量、朗读速度和勿扰设置恢复默认值。',
+      content: '设备保持绑定，音量、朗读速度和勿扰设置恢复默认值。',
       action: '确认恢复',
     );
     if (!confirmed) return;
@@ -532,8 +599,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       value = (settings['volume'] as num?)?.toDouble() ?? 60;
       speechRate = (settings['speechRate'] as num?)?.toDouble() ?? 50;
       dnd = settings['dndEnabled'] != false;
-      deviceOnline = false;
-      if (mounted) _notice('设备已恢复出厂设置，请重新发现并激活。');
+      deviceOnline = deviceData['status'] == 'online';
+      if (mounted) _notice('设备参数已恢复默认值，绑定关系保持不变。');
     } catch (error) {
       if (mounted) _notice('恢复失败：$error');
     } finally {
@@ -552,7 +619,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     setState(() => busy = true);
     try {
       final result = await widget.repository!.unbindDevice();
-      deviceData = {...deviceData, 'status': 'unbound'};
+      deviceData = const {'status': 'unbound'};
       deviceOnline = false;
       final retainUntil =
           DateTime.tryParse(result['dataRetainedUntil']?.toString() ?? '');
@@ -592,16 +659,124 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       ) ??
       false;
 
-  List<Widget> _switches(String firstTitle) => [
-        SwitchListTile(
-            value: enabled,
-            onChanged: (next) => setState(() => enabled = next),
-            title: Text(firstTitle)),
-        SwitchListTile(
-            value: dnd,
-            onChanged: (next) => setState(() => dnd = next),
-            title: const Text('健康提醒')),
-      ];
+  List<Widget> _reminderContent() {
+    final canUseDnd = enabled || healthReminderEnabled;
+    return [
+      SwitchListTile(
+        key: const Key('task-reminder-switch'),
+        value: enabled,
+        onChanged: (next) => _setReminderToggle(task: next),
+        title: const Text('每日任务提醒'),
+        subtitle: const Text('按计划时间提醒长辈完成今日任务'),
+      ),
+      SwitchListTile(
+        key: const Key('health-reminder-switch'),
+        value: healthReminderEnabled,
+        onChanged: (next) => _setReminderToggle(health: next),
+        title: const Text('健康提醒'),
+        subtitle: const Text('健康数据异常或需要复测时提醒'),
+      ),
+      const Divider(),
+      SwitchListTile(
+        key: const Key('dnd-switch'),
+        value: canUseDnd && dnd,
+        onChanged: canUseDnd
+            ? (next) {
+                setState(() => dnd = next);
+                _saveReminderSettings();
+              }
+            : null,
+        title: const Text('勿扰时段'),
+        subtitle: Text(canUseDnd
+            ? '${_timeValue(dndStart)} 至次日 ${_timeValue(dndEnd)}'
+            : '开启任意一种提醒后可设置'),
+      ),
+      if (canUseDnd && dnd) ...[
+        ListTile(
+          leading: const Icon(Icons.nights_stay_outlined,
+              color: FubaoColors.mintStrong),
+          title: const Text('开始时间'),
+          trailing: Text(_timeValue(dndStart),
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+          onTap: () => _pickDndTime(start: true),
+        ),
+        ListTile(
+          leading: const Icon(Icons.wb_sunny_outlined,
+              color: FubaoColors.orangeStrong),
+          title: const Text('结束时间'),
+          trailing: Text(_timeValue(dndEnd),
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+          onTap: () => _pickDndTime(start: false),
+        ),
+      ],
+    ];
+  }
+
+  void _setReminderToggle({bool? task, bool? health}) {
+    setState(() {
+      if (task != null) enabled = task;
+      if (health != null) healthReminderEnabled = health;
+      if (!enabled && !healthReminderEnabled) dnd = false;
+    });
+    _saveReminderSettings();
+  }
+
+  Future<void> _pickDndTime({required bool start}) async {
+    final current = start ? dndStart : dndEnd;
+    final picked = await showTimePicker(context: context, initialTime: current);
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (start) {
+        dndStart = picked;
+      } else {
+        dndEnd = picked;
+      }
+    });
+    await _saveReminderSettings();
+  }
+
+  String get _reminderKey =>
+      'fubao-reminders-${widget.elder ? 'elder' : 'child'}-v1';
+
+  Future<void> _loadReminderSettings() async {
+    final raw = await reminderStore.read(_reminderKey);
+    if (raw == null || !mounted) return;
+    try {
+      final data = (jsonDecode(raw) as Map).cast<String, dynamic>();
+      setState(() {
+        enabled = data['taskEnabled'] != false;
+        healthReminderEnabled = data['healthEnabled'] != false;
+        dnd = data['dndEnabled'] == true && (enabled || healthReminderEnabled);
+        dndStart = _parseTime(data['dndStart']?.toString(), dndStart);
+        dndEnd = _parseTime(data['dndEnd']?.toString(), dndEnd);
+      });
+    } catch (_) {
+      // Invalid local preferences fall back to the safe defaults.
+    }
+  }
+
+  Future<void> _saveReminderSettings() => reminderStore.write(
+        _reminderKey,
+        jsonEncode({
+          'taskEnabled': enabled,
+          'healthEnabled': healthReminderEnabled,
+          'dndEnabled': dnd,
+          'dndStart': _timeValue(dndStart),
+          'dndEnd': _timeValue(dndEnd),
+        }),
+      );
+
+  TimeOfDay _parseTime(String? value, TimeOfDay fallback) {
+    final parts = value?.split(':');
+    if (parts == null || parts.length != 2) return fallback;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return fallback;
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  String _timeValue(TimeOfDay value) =>
+      '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 
   List<Widget> _notificationSwitches() => [
         SwitchListTile(
@@ -874,6 +1049,8 @@ class _HealthProfileEditDialogState extends State<_HealthProfileEditDialog> {
   late final TextEditingController heightController;
   late final TextEditingController weightController;
   late final TextEditingController conditionsController;
+  late final TextEditingController medicationsController;
+  late final TextEditingController medicalHistoryController;
   late final TextEditingController contactController;
   String? errorText;
 
@@ -890,6 +1067,12 @@ class _HealthProfileEditDialogState extends State<_HealthProfileEditDialog> {
       text:
           (widget.initial['chronicConditions'] as List? ?? const []).join('、'),
     );
+    medicationsController = TextEditingController(
+      text: _historyText(widget.initial['medicationHistory']),
+    );
+    medicalHistoryController = TextEditingController(
+      text: _historyText(widget.initial['medicalHistory']),
+    );
     contactController = TextEditingController(
         text: widget.initial['emergencyContact']?.toString() ?? '');
   }
@@ -900,6 +1083,8 @@ class _HealthProfileEditDialogState extends State<_HealthProfileEditDialog> {
     heightController.dispose();
     weightController.dispose();
     conditionsController.dispose();
+    medicationsController.dispose();
+    medicalHistoryController.dispose();
     contactController.dispose();
     super.dispose();
   }
@@ -927,6 +1112,16 @@ class _HealthProfileEditDialogState extends State<_HealthProfileEditDialog> {
               controller: conditionsController,
               decoration: const InputDecoration(
                   labelText: '慢病类型', hintText: '多个项目用逗号分隔'),
+            ),
+            TextField(
+              controller: medicationsController,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: '用药史'),
+            ),
+            TextField(
+              controller: medicalHistoryController,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: '既往病史'),
             ),
             TextField(
               controller: contactController,
@@ -973,10 +1168,30 @@ class _HealthProfileEditDialogState extends State<_HealthProfileEditDialog> {
       'heightCm': height,
       'weightKg': weight,
       'chronicConditions': conditions,
+      'medicationHistory': medicationsController.text.trim().isEmpty
+          ? <String, dynamic>{}
+          : <String, dynamic>{
+              'summary': medicationsController.text.trim(),
+            },
+      'medicalHistory': medicalHistoryController.text.trim().isEmpty
+          ? <String, dynamic>{}
+          : <String, dynamic>{
+              'summary': medicalHistoryController.text.trim(),
+            },
       if (contactController.text.trim().isNotEmpty)
         'emergencyContact': contactController.text.trim(),
     });
   }
+}
+
+String _historyText(Object? value) {
+  if (value is Map) {
+    return value.values
+        .where((item) => item != null && item.toString().trim().isNotEmpty)
+        .map((item) => item.toString())
+        .join('、');
+  }
+  return value?.toString() ?? '';
 }
 
 class PrivacyPolicyPage extends StatelessWidget {

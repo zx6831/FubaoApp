@@ -59,7 +59,7 @@ class _ChildHomePageState extends State<ChildHomePage> {
               ],
             ),
             const SizedBox(height: 14),
-            _SparkHero(days: repository.spark.streakDays),
+            _SparkHero(spark: repository.spark),
             if (repository.alerts
                 .any((alert) => alert.status == 'pending')) ...[
               const SizedBox(height: 12),
@@ -186,8 +186,8 @@ class _HeaderAction extends StatelessWidget {
 }
 
 class _SparkHero extends StatelessWidget {
-  const _SparkHero({required this.days});
-  final int days;
+  const _SparkHero({required this.spark});
+  final FamilySpark spark;
 
   @override
   Widget build(BuildContext context) {
@@ -204,9 +204,9 @@ class _SparkHero extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             flex: 5,
-            child: FubaoIllustrationAsset(FubaoIllustration.spark),
+            child: SparkIllustration(spark: spark),
           ),
           Expanded(
             flex: 6,
@@ -214,14 +214,16 @@ class _SparkHero extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$days',
-                    style: const TextStyle(
-                        color: FubaoColors.mintStrong,
+                Text('${spark.streakDays}',
+                    style: TextStyle(
+                        color: spark.lit
+                            ? FubaoColors.mintStrong
+                            : FubaoColors.inkMuted,
                         fontSize: 56,
                         height: 1,
                         fontWeight: FontWeight.w900)),
                 const SizedBox(height: 8),
-                Text('已连续互动 $days 天',
+                Text(spark.lit ? '已连续互动 ${spark.streakDays} 天' : '今日火花还未点亮',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
@@ -331,14 +333,24 @@ class _BloodPressureCard extends StatelessWidget {
               _StatusPill('稳定'),
             ]),
             const SizedBox(height: 8),
-            Text(
-                reading == null
-                    ? '--/--'
-                    : '${reading!.value['systolic']}/${reading!.value['diastolic']}',
-                style: const TextStyle(
+            SizedBox(
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  reading == null
+                      ? '--/--'
+                      : '${reading!.value['systolic']}/${reading!.value['diastolic']}',
+                  maxLines: 1,
+                  style: const TextStyle(
                     color: FubaoColors.mintStrong,
                     fontSize: 25,
-                    fontWeight: FontWeight.w900)),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
             const Text('mmHg',
                 style: TextStyle(color: FubaoColors.mintStrong, fontSize: 12)),
             const Spacer(),
@@ -391,12 +403,18 @@ class _MoodCard extends StatelessWidget {
               _StatusPill(reading?.value['text']?.toString() ?? '未记录',
                   filled: reading != null),
             ]),
-            const Expanded(
-                child: Center(
-                    child: FubaoIllustrationAsset(FubaoIllustration.mood,
-                        width: 72, height: 72))),
-            const Text(
-              '谢谢你分享心情！',
+            Expanded(
+              child: Center(
+                child: Icon(
+                  _moodIcon(reading?.value['text']?.toString()),
+                  key: Key('mood-icon-${_moodKey(reading?.value['text']?.toString())}'),
+                  size: 62,
+                  color: _moodColor(reading?.value['text']?.toString()),
+                ),
+              ),
+            ),
+            Text(
+              reading == null ? '今天还没有记录心情' : '谢谢你分享心情！',
               maxLines: 1,
               softWrap: false,
               overflow: TextOverflow.fade,
@@ -427,6 +445,30 @@ class _StatusPill extends StatelessWidget {
                 fontWeight: FontWeight.w700)),
       );
 }
+
+IconData _moodIcon(String? mood) => switch (mood) {
+      '开心' || '愉快' => Icons.sentiment_very_satisfied_rounded,
+      '平静' => Icons.sentiment_satisfied_alt_rounded,
+      '一般' => Icons.sentiment_neutral_rounded,
+      '低落' || '不开心' => Icons.sentiment_dissatisfied_rounded,
+      '不舒服' => Icons.sick_outlined,
+      _ => Icons.sentiment_satisfied_outlined,
+    };
+
+String _moodKey(String? mood) => switch (mood) {
+      '开心' || '愉快' => 'happy',
+      '平静' => 'calm',
+      '一般' => 'neutral',
+      '低落' || '不开心' => 'sad',
+      '不舒服' => 'unwell',
+      _ => 'unknown',
+    };
+
+Color _moodColor(String? mood) => switch (mood) {
+      '低落' || '不开心' || '不舒服' => FubaoColors.orangeStrong,
+      '一般' => FubaoColors.inkMuted,
+      _ => FubaoColors.mintStrong,
+    };
 
 class _ConversationCard extends StatelessWidget {
   const _ConversationCard({required this.prompt, required this.onPressed});

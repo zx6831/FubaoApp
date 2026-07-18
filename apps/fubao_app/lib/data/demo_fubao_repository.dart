@@ -110,7 +110,8 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   @override
   int get completedTaskCount => _tasks.where((task) => task.isCompleted).length;
   @override
-  bool get allTasksCompleted => _tasks.every((task) => task.isCompleted);
+  bool get allTasksCompleted =>
+      _tasks.isNotEmpty && _tasks.every((task) => task.isCompleted);
 
   @override
   final List<HealthReading> healthReadings = [
@@ -315,7 +316,21 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   }
 
   @override
-  Future<void> markTopicCopied(String id) async {}
+  Future<void> markTopicCopied(String id) async {
+    final topic = topics.where((item) => item.id == id).firstOrNull;
+    if (topic == null) return;
+    messages.insert(
+      0,
+      AppMessage(
+        id: 'topic-${DateTime.now().microsecondsSinceEpoch}',
+        type: AppMessageType.insight,
+        title: '已使用今日话题',
+        body: topic.title,
+        createdAt: DateTime.now(),
+      ),
+    );
+    notifyListeners();
+  }
 
   @override
   Future<void> markMessageRead(String id) async {
@@ -383,6 +398,30 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
       Map<String, dynamic>.from(_device);
 
   @override
+  Future<Map<String, dynamic>> discoverDevice() async {
+    _device
+      ..['status'] = 'discovered'
+      ..['serialNumber'] = 'FB-DEMO-001'
+      ..['firmware'] = '1.0.0';
+    notifyListeners();
+    return Map<String, dynamic>.from(_device);
+  }
+
+  @override
+  Future<Map<String, dynamic>> activateDevice(
+    String serialNumber,
+    String networkName,
+  ) async {
+    _device
+      ..['serialNumber'] = serialNumber
+      ..['status'] = 'online'
+      ..['activatedAt'] = DateTime.now().toIso8601String()
+      ..['lastOnlineAt'] = DateTime.now().toIso8601String();
+    notifyListeners();
+    return Map<String, dynamic>.from(_device);
+  }
+
+  @override
   Future<Map<String, dynamic>> updateDeviceSettings(
     Map<String, dynamic> settings,
   ) async {
@@ -400,7 +439,9 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
 
   @override
   Future<Map<String, dynamic>> unbindDevice() async {
-    _device['status'] = 'unbound';
+    _device
+      ..clear()
+      ..['status'] = 'unbound';
     notifyListeners();
     return {
       'unbound': true,
@@ -411,10 +452,9 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
 
   @override
   Future<Map<String, dynamic>> factoryResetDevice() async {
+    final status = _device['status'];
     _device
-      ..['status'] = 'discovered'
-      ..['activatedAt'] = null
-      ..['lastOnlineAt'] = null
+      ..['status'] = status
       ..['settings'] = {
         'volume': 60,
         'speechRate': 50,

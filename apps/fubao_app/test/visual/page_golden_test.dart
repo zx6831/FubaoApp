@@ -92,7 +92,13 @@ void main() {
     });
 
     testWidgets('younger profile', (tester) async {
-      await pumpReferencePage(tester, ChildProfilePage(onLogout: () async {}));
+      await pumpReferencePage(
+        tester,
+        ChildProfilePage(
+          repository: DemoFubaoRepository(),
+          onLogout: () async {},
+        ),
+      );
       await expectPage(tester, 'younger_profile');
     });
 

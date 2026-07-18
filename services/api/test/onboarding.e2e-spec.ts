@@ -101,5 +101,8 @@ describe('Health profile and simulated device onboarding', () => {
       .expect(200);
     const retentionDays = (Date.parse(response.body.data.dataRetainedUntil) - Date.now()) / 86400000;
     expect(retentionDays).toBeGreaterThan(89.9);
+    await request(app.getHttpServer()).get('/api/devices/current')
+      .set('Authorization', `Bearer ${childToken}`).expect(200)
+      .expect(({ body }) => expect(body.data).toEqual({ status: 'unbound' }));
   });
 });

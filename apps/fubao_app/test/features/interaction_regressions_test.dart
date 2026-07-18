@@ -5,6 +5,7 @@ import 'package:fubao_app/design/fubao_theme.dart';
 import 'package:fubao_app/domain/models.dart';
 import 'package:fubao_app/features/auth/family_binding_page.dart';
 import 'package:fubao_app/features/child/child_topics_page.dart';
+import 'package:fubao_app/features/child/child_plans_page.dart';
 import 'package:fubao_app/features/child/create_plan_page.dart';
 import 'package:fubao_app/features/elder/elder_home_page.dart';
 import 'package:fubao_app/features/elder/elder_plans_page.dart';
@@ -41,6 +42,23 @@ void main() {
     expect(refresh.top - regenerate.bottom, greaterThanOrEqualTo(8));
   });
 
+  testWidgets('a new family plan page has no invented progress or spark',
+      (tester) async {
+    final repository = _EmptyRepository();
+    await pumpPhone(
+      tester,
+      Scaffold(body: ChildPlansPage(repository: repository)),
+    );
+
+    expect(find.text('今日火花未点亮'), findsOneWidget);
+    expect(find.text('本周还没有任务'), findsOneWidget);
+    expect(find.text('本月还没有任务'), findsOneWidget);
+    expect(find.text('还没有正在进行的计划'), findsOneWidget);
+    expect(find.text('添加第一个健康计划后，任务会从执行日期开始生成'),
+        findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
+  });
+
   testWidgets('blood pressure task uses measurement-specific actions',
       (tester) async {
     final repository = _TaskRepository([
@@ -61,6 +79,88 @@ void main() {
     expect(find.text('我已经吃了'), findsNothing);
   });
 
+  testWidgets('elder empty-state refresh visibly rotates while reloading',
+      (tester) async {
+    await pumpPhone(
+      tester,
+      Scaffold(body: ElderHomePage(repository: _EmptyRepository())),
+    );
+    await tester.tap(find.text('刷新看看'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(const Key('elder-refresh-spinner')), findsOneWidget);
+    expect(find.text('正在刷新'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('elder plan puts next pending task before the ordered overview',
+      (tester) async {
+    final repository = _TaskRepository([
+      HealthTask(
+        id: 'completed-early',
+        title: '已完成任务',
+        subtitle: '已经完成',
+        timeLabel: '上午 7:00',
+        kind: TaskKind.medicine,
+        isCompleted: true,
+        scheduledDate: DateTime(2026, 7, 18),
+      ),
+      HealthTask(
+        id: 'pending-late',
+        title: '稍后任务',
+        subtitle: '稍后完成',
+        timeLabel: '上午 10:00',
+        kind: TaskKind.walk,
+        scheduledDate: DateTime(2026, 7, 18),
+      ),
+      HealthTask(
+        id: 'pending-early',
+        title: '早间任务',
+        subtitle: '优先完成',
+        timeLabel: '上午 8:00',
+        kind: TaskKind.bloodPressure,
+        scheduledDate: DateTime(2026, 7, 18),
+      ),
+    ]);
+    await pumpPhone(
+      tester,
+      Scaffold(
+        body: ElderPlansPage(
+          repository: repository,
+          today: DateTime(2026, 7, 18),
+        ),
+      ),
+    );
+
+    expect(tester.getTopLeft(find.text('接下来的事')).dy,
+        lessThan(tester.getTopLeft(find.text('今天的任务')).dy));
+    expect(find.text('早间任务'), findsNWidgets(2));
+    await tester.scrollUntilVisible(
+      find.text('已完成任务'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(tester.getTopLeft(find.text('早间任务').last).dy,
+        lessThan(tester.getTopLeft(find.text('稍后任务')).dy));
+    expect(tester.getTopLeft(find.text('稍后任务')).dy,
+        lessThan(tester.getTopLeft(find.text('已完成任务')).dy));
+  });
+
+  testWidgets('elder plan hides next section when nothing is pending',
+      (tester) async {
+    await pumpPhone(
+      tester,
+      Scaffold(
+        body: ElderPlansPage(
+          repository: _EmptyRepository(),
+          today: DateTime(2026, 7, 18),
+        ),
+      ),
+    );
+    expect(find.text('接下来的事'), findsNothing);
+    expect(find.text('今天还没有任务'), findsOneWidget);
+  });
+
   testWidgets('blood pressure dialog reaches confirmation without assertion',
       (tester) async {
     final repository = DemoFubaoRepository();
@@ -71,10 +171,8 @@ void main() {
 
     await tester.tap(find.text('血压').first);
     await tester.pumpAndSettle();
-    await tester.enterText(
-        find.byKey(const Key('record-primary-value')), '120');
-    await tester.enterText(
-        find.byKey(const Key('record-secondary-value')), '80');
+    await tester.tap(find.byKey(const Key('elder-primary-120')));
+    await tester.tap(find.byKey(const Key('elder-secondary-80')));
     await tester.tap(find.text('下一步'));
     await tester.pumpAndSettle();
 
@@ -152,7 +250,7 @@ void main() {
       tester,
       Scaffold(body: ChildTopicsPage(repository: repository)),
     );
-    await tester.tap(find.text('轻松聊聊'));
+    await tester.tap(find.text('本周健康周报已生成'));
     await tester.pumpAndSettle();
     expect(find.text('消息详情'), findsOneWidget);
 
@@ -209,6 +307,31 @@ class _TaskRepository extends DemoFubaoRepository {
   @override
   bool get allTasksCompleted =>
       items.isNotEmpty && items.every((task) => task.isCompleted);
+
+  @override
+  Future<List<HealthTask>> taskHistory(DateTime from, DateTime to) async => [];
+}
+
+class _EmptyRepository extends DemoFubaoRepository {
+  @override
+  List<HealthTask> get tasks => const [];
+
+  @override
+  List<HealthPlan> get plans => const [];
+
+  @override
+  int get completedTaskCount => 0;
+
+  @override
+  bool get allTasksCompleted => false;
+
+  @override
+  FamilySpark get spark => const FamilySpark(
+        lit: false,
+        streakDays: 0,
+        childActive: true,
+        elderActive: false,
+      );
 
   @override
   Future<List<HealthTask>> taskHistory(DateTime from, DateTime to) async => [];

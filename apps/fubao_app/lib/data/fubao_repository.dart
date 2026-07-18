@@ -69,6 +69,13 @@ abstract interface class FubaoRepository implements Listenable {
 
   Future<Map<String, dynamic>> currentDevice();
 
+  Future<Map<String, dynamic>> discoverDevice();
+
+  Future<Map<String, dynamic>> activateDevice(
+    String serialNumber,
+    String networkName,
+  );
+
   Future<Map<String, dynamic>> updateDeviceSettings(
     Map<String, dynamic> settings,
   );
