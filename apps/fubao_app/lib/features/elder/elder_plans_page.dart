@@ -267,7 +267,13 @@ Future<void> _completePlanTask(
     _ => null,
   };
   if (metric != null) {
-    await showHealthRecordDialog(context, repository, metric, elder: true);
+    await showHealthRecordDialog(
+      context,
+      repository,
+      metric,
+      elder: true,
+      taskId: task.id,
+    );
   } else {
     await repository.setTaskCompleted(task.id, true);
   }

@@ -7,6 +7,7 @@ import 'package:fubao_app/domain/models.dart';
 import 'package:fubao_app/features/auth/family_binding_page.dart';
 import 'package:fubao_app/features/child/child_topics_page.dart';
 import 'package:fubao_app/features/child/child_plans_page.dart';
+import 'package:fubao_app/features/child/child_home_page.dart';
 import 'package:fubao_app/features/child/create_plan_page.dart';
 import 'package:fubao_app/features/elder/elder_home_page.dart';
 import 'package:fubao_app/features/elder/elder_plans_page.dart';
@@ -374,6 +375,54 @@ void main() {
     expect(find.text('健康状况'), findsOneWidget);
     expect(find.text('安全与授权'), findsOneWidget);
     expect(find.text('编辑健康档案'), findsOneWidget);
+  });
+
+  testWidgets('family reminder appears on elder home until its task completes',
+      (tester) async {
+    final repository = _TaskRepository([
+      HealthTask(
+        id: 'reminded-task',
+        title: 'Blood pressure',
+        subtitle: 'Measure now',
+        timeLabel: '08:30',
+        kind: TaskKind.bloodPressure,
+        remindedAt: DateTime(2026, 7, 20, 8, 20),
+      ),
+    ]);
+    await pumpPhone(
+      tester,
+      Scaffold(body: ElderHomePage(repository: repository)),
+    );
+
+    expect(
+        find.byKey(const Key('elder-family-reminder-banner')), findsOneWidget);
+    expect(find.textContaining('\u5bb6\u4eba\u63d0\u9192'), findsOneWidget);
+
+    await repository.setTaskCompleted('reminded-task', true);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('elder-family-reminder-banner')), findsNothing);
+  });
+
+  testWidgets('child home reports tasks deferred by the elder', (tester) async {
+    final repository = _TaskRepository([
+      const HealthTask(
+        id: 'deferred-task',
+        title: 'Medicine',
+        subtitle: 'Take later',
+        timeLabel: '20:00',
+        kind: TaskKind.medicine,
+        isSkipped: true,
+      ),
+    ]);
+    await pumpPhone(
+      tester,
+      Scaffold(body: ChildHomePage(repository: repository)),
+    );
+
+    expect(
+        find.text(
+            '\u957f\u8f88\u6709 1 \u9879\u9009\u62e9\u7a0d\u540e\u5b8c\u6210'),
+        findsOneWidget);
   });
 }
 

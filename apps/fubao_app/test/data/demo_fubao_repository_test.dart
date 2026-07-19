@@ -102,4 +102,81 @@ void main() {
     expect(today, isNotEmpty);
     expect(today.every((task) => task.scheduledDate != null), isTrue);
   });
+
+  test('health recording completes only the selected same-kind task', () async {
+    final repository = DemoFubaoRepository();
+    final now = DateTime.now();
+    final firstPlan = await repository.createPlan(PlanDraft(
+      kind: TaskKind.bloodPressure,
+      title: 'Morning pressure',
+      subtitle: 'First reading',
+      startsOn: now,
+      reminderTime: '08:00',
+      daysOfWeek: [now.weekday],
+    ));
+    final secondPlan = await repository.createPlan(PlanDraft(
+      kind: TaskKind.bloodPressure,
+      title: 'Evening pressure',
+      subtitle: 'Second reading',
+      startsOn: now,
+      reminderTime: '20:00',
+      daysOfWeek: [now.weekday],
+    ));
+    final firstTask = repository.tasks.singleWhere(
+      (task) => task.planId == firstPlan.id,
+    );
+    final secondTask = repository.tasks.singleWhere(
+      (task) => task.planId == secondPlan.id,
+    );
+
+    await repository.recordHealth(
+      HealthMetric.bloodPressure,
+      const {'systolic': 126, 'diastolic': 78},
+      taskId: secondTask.id,
+    );
+
+    expect(
+      repository.tasks
+          .singleWhere((task) => task.id == firstTask.id)
+          .isCompleted,
+      isFalse,
+    );
+    expect(
+      repository.tasks
+          .singleWhere((task) => task.id == secondTask.id)
+          .isCompleted,
+      isTrue,
+    );
+  });
+
+  test('reminder is cleared on completion and paused plans leave the queue',
+      () async {
+    final repository = DemoFubaoRepository();
+    final now = DateTime.now();
+    final plan = await repository.createPlan(PlanDraft(
+      kind: TaskKind.custom,
+      title: 'Custom task',
+      subtitle: 'Do it today',
+      startsOn: now,
+      reminderTime: '12:00',
+      daysOfWeek: [now.weekday],
+    ));
+    final task = repository.tasks.singleWhere((item) => item.planId == plan.id);
+
+    await repository.remindTask(task.id);
+    expect(
+        repository.tasks.singleWhere((item) => item.id == task.id).remindedAt,
+        isNotNull);
+    await repository.updatePlanStatus(plan.id, 'paused');
+    expect(repository.tasks.where((item) => item.id == task.id), isEmpty);
+    await repository.updatePlanStatus(plan.id, 'active');
+    expect(
+        repository.tasks.singleWhere((item) => item.id == task.id).remindedAt,
+        isNull);
+    await repository.remindTask(task.id);
+    await repository.setTaskCompleted(task.id, true);
+    expect(
+        repository.tasks.singleWhere((item) => item.id == task.id).remindedAt,
+        isNull);
+  });
 }

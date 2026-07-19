@@ -109,14 +109,21 @@ export class PlansService {
       if (!plan) throw new NotFoundException('计划不存在');
       if (plan.status === 'ended' && status !== 'ended') throw new ConflictException('已结束的计划不能重新启用');
       const now = new Date();
-      return this.serializePlan(await this.prisma.plan.update({
+      const updated = await this.prisma.plan.update({
         where: { id },
         data: {
           status,
           pausedAt: status === 'paused' ? now : status === 'active' ? null : plan.pausedAt,
           endedAt: status === 'ended' ? now : plan.endedAt,
         },
-      }));
+      });
+      if (status !== 'active') {
+        await this.prisma.dailyTask.updateMany({
+          where: { planId: id, status: { not: 'completed' } },
+          data: { remindedAt: null },
+        });
+      }
+      return this.serializePlan(updated);
     }
     const plan = [...this.memory.plans.values()].find((item) => item.id === id && item.familyId === family.id);
     if (!plan) throw new NotFoundException('计划不存在');
@@ -126,6 +133,11 @@ export class PlansService {
     plan.pausedAt = status === 'paused' ? now : status === 'active' ? null : plan.pausedAt;
     plan.endedAt = status === 'ended' ? now : plan.endedAt;
     plan.updatedAt = now;
+    if (status !== 'active') {
+      for (const task of this.memory.dailyTasks.values()) {
+        if (task.planId === id && task.status !== 'completed') task.remindedAt = null;
+      }
+    }
     return this.serializePlan(plan);
   }
 
@@ -136,12 +148,15 @@ export class PlansService {
     await this.generateDailyTasks(family.id, date);
     const items = this.prisma.isEnabled()
       ? await this.prisma.dailyTask.findMany({
-          where: { familyId: family.id, date: this.utcDate(date) },
+          where: { familyId: family.id, date: this.utcDate(date), plan: { status: 'active' } },
           include: { record: true },
           orderBy: [{ reminderAt: 'asc' }, { createdAt: 'asc' }],
         })
       : [...this.memory.dailyTasks.values()]
-          .filter((task) => task.familyId === family.id && task.date === date)
+          .filter((task) =>
+            task.familyId === family.id && task.date === date &&
+            this.memory.plans.get(task.planId)?.status === 'active',
+          )
           .sort((a, b) => a.reminderAt.getTime() - b.reminderAt.getTime());
     return this.taskCollection(date, items);
   }
@@ -182,14 +197,36 @@ export class PlansService {
     if (this.prisma.isEnabled()) {
       const task = await this.prisma.dailyTask.findFirst({
         where: { id: taskId, familyId: family.id, userId: user.sub },
-        include: { record: true },
+        include: { record: true, plan: true },
       });
       if (!task) throw new NotFoundException('任务不存在');
       const existingByKey = await this.prisma.taskRecord.findUnique({ where: { idempotencyKey: key }, include: { task: true } });
+      if (task.plan.status !== 'active') throw new ConflictException('\u8ba1\u5212\u5df2\u6682\u505c\uff0c\u5f53\u524d\u4efb\u52a1\u6682\u4e0d\u53ef\u5b8c\u6210');
       if (existingByKey) {
         if (existingByKey.taskId !== taskId) throw new ConflictException('幂等键已用于其他任务');
         if (status === 'completed') await this.health.markActivity(family.id, 'elder');
         return this.serializeTask({ ...existingByKey.task, record: existingByKey });
+      }
+      if (task.record && task.status === 'skipped' && status === 'completed') {
+        const completedAt = new Date();
+        const result = await this.prisma.$transaction(async (tx) => {
+          const record = await tx.taskRecord.update({
+            where: { id: task.record!.id },
+            data: {
+              idempotencyKey: key,
+              status: 'completed',
+              data: data as Prisma.InputJsonValue | undefined,
+              completedAt,
+            },
+          });
+          const updated = await tx.dailyTask.update({
+            where: { id: taskId },
+            data: { status: 'completed', remindedAt: null },
+          });
+          return { ...updated, record };
+        });
+        await this.health.markActivity(family.id, 'elder');
+        return this.serializeTask(result);
       }
       if (task.record) {
         if (status === 'completed') await this.health.markActivity(family.id, 'elder');
@@ -208,7 +245,10 @@ export class PlansService {
             completedAt,
           },
         });
-        const updated = await tx.dailyTask.update({ where: { id: taskId }, data: { status } });
+        const updated = await tx.dailyTask.update({
+          where: { id: taskId },
+          data: { status, ...(status === 'completed' ? { remindedAt: null } : {}) },
+        });
         return { ...updated, record };
       });
       if (status === 'completed') await this.health.markActivity(family.id, 'elder');
@@ -219,6 +259,8 @@ export class PlansService {
       (item) => item.id === taskId && item.familyId === family.id && item.userId === user.sub,
     );
     if (!task) throw new NotFoundException('任务不存在');
+    const currentPlan = this.memory.plans.get(task.planId);
+    if (currentPlan?.status !== 'active') throw new ConflictException('\u8ba1\u5212\u5df2\u6682\u505c\uff0c\u5f53\u524d\u4efb\u52a1\u6682\u4e0d\u53ef\u5b8c\u6210');
     const existingByKey = this.memory.taskRecordsByIdempotencyKey.get(key);
     if (existingByKey) {
       if (task.record?.id !== existingByKey.id) throw new ConflictException('幂等键已用于其他任务');
@@ -226,6 +268,19 @@ export class PlansService {
       return this.serializeTask(task);
     }
     if (task.record) {
+      if (task.record && task.status === 'skipped' && status === 'completed') {
+        this.memory.taskRecordsByIdempotencyKey.delete(task.record.idempotencyKey);
+        task.record.idempotencyKey = key;
+        task.record.status = 'completed';
+        task.record.data = data;
+        task.record.completedAt = new Date();
+        task.status = 'completed';
+        task.remindedAt = null;
+        task.updatedAt = new Date();
+        this.memory.taskRecordsByIdempotencyKey.set(key, task.record);
+        await this.health.markActivity(family.id, 'elder');
+        return this.serializeTask(task);
+      }
       if (status === 'completed') await this.health.markActivity(family.id, 'elder');
       return this.serializeTask(task);
     }
@@ -241,6 +296,7 @@ export class PlansService {
     task.record = record;
     task.updatedAt = new Date();
     this.memory.taskRecordsByIdempotencyKey.set(key, record);
+    if (status === 'completed') task.remindedAt = null;
     if (status === 'completed') await this.health.markActivity(family.id, 'elder');
     return this.serializeTask(task);
   }
@@ -249,10 +305,16 @@ export class PlansService {
     this.assertChild(user);
     const family = await this.families.current(user);
     if (this.prisma.isEnabled()) {
-      const task = await this.prisma.dailyTask.findFirst({ where: { id: taskId, familyId: family.id } });
+      const task = await this.prisma.dailyTask.findFirst({
+        where: { id: taskId, familyId: family.id }, include: { plan: true },
+      });
       if (!task) throw new NotFoundException('任务不存在');
+      if (task.plan.status !== 'active') throw new ConflictException('\u8ba1\u5212\u5df2\u6682\u505c\uff0c\u5f53\u524d\u4efb\u52a1\u6682\u4e0d\u53ef\u63d0\u9192');
+      if (task.status === 'completed') throw new ConflictException('\u4efb\u52a1\u5df2\u7ecf\u5b8c\u6210\uff0c\u65e0\u9700\u518d\u6b21\u63d0\u9192');
+      await this.prisma.dailyTask.update({ where: { id: taskId }, data: { remindedAt: new Date() } });
       const device = await this.prisma.device.findUnique({ where: { familyId: family.id } });
-      if (!device || device.status === 'unbound') throw new NotFoundException('尚未绑定设备');
+      const appReminderText = `\u6e29\u99a8\u63d0\u9192\uff0c\u73b0\u5728\u8be5${task.title}\u4e86`;
+      if (!device || String(device.status) === 'unbound') return { accepted: false, channel: 'inApp', deviceStatus: 'unbound', text: appReminderText };
       const text = `温馨提醒，现在该${task.title}了`;
       await this.prisma.deviceEvent.create({
         data: { deviceId: device.id, type: 'tts.taskReminder', payload: { taskId, text, simulated: true } },
@@ -261,8 +323,14 @@ export class PlansService {
     }
     const task = [...this.memory.dailyTasks.values()].find((item) => item.id === taskId && item.familyId === family.id);
     if (!task) throw new NotFoundException('任务不存在');
+    const plan = this.memory.plans.get(task.planId);
+    if (plan?.status !== 'active') throw new ConflictException('\u8ba1\u5212\u5df2\u6682\u505c\uff0c\u5f53\u524d\u4efb\u52a1\u6682\u4e0d\u53ef\u63d0\u9192');
+    if (task.status === 'completed') throw new ConflictException('\u4efb\u52a1\u5df2\u7ecf\u5b8c\u6210\uff0c\u65e0\u9700\u518d\u6b21\u63d0\u9192');
+    task.remindedAt = new Date();
+    task.updatedAt = new Date();
     const device = this.memory.devices.get(family.id);
-    if (!device || device.status === 'unbound') throw new NotFoundException('尚未绑定设备');
+    const appReminderText = `\u6e29\u99a8\u63d0\u9192\uff0c\u73b0\u5728\u8be5${task.title}\u4e86`;
+    if (!device || String(device.status) === 'unbound') return { accepted: false, channel: 'inApp', deviceStatus: 'unbound', text: appReminderText };
     const text = `温馨提醒，现在该${task.title}了`;
     return { accepted: device.status === 'online', channel: 'simulatedTts', deviceStatus: device.status, text };
   }
@@ -305,7 +373,7 @@ export class PlansService {
       const task: MemoryDailyTask = {
         id: randomUUID(), familyId, planId: plan.id, userId: plan.subjectUserId, date, kind: plan.kind,
         title: plan.title, subtitle: plan.subtitle, reminderAt: this.shanghaiTime(date, plan.schedule.time),
-        status: 'pending', createdAt: now, updatedAt: now,
+        status: 'pending', remindedAt: null, createdAt: now, updatedAt: now,
       };
       this.memory.dailyTasks.set(task.id, task);
     }
@@ -354,6 +422,7 @@ export class PlansService {
       subtitle: task.subtitle ?? null,
       reminderAt: task.reminderAt?.toISOString() ?? null,
       status: task.status,
+      remindedAt: task.status !== 'completed' && task.remindedAt != null ? task.remindedAt.toISOString() : null,
       record: task.record ? {
         status: task.record.status,
         source: task.record.source,

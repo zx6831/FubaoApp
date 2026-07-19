@@ -248,6 +248,9 @@ class _TaskProgressCard extends StatelessWidget {
     final done = repository.completedTaskCount;
     final total = repository.tasks.length;
     final progress = total == 0 ? 0.0 : done / total;
+    final deferred = repository.tasks
+        .where((task) => task.isSkipped && !task.isCompleted)
+        .length;
     return FubaoCard(
       padding: const EdgeInsets.all(14),
       child: Row(
@@ -278,6 +281,16 @@ class _TaskProgressCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
+                if (deferred > 0) ...[
+                  Text(
+                    '\u957f\u8f88\u6709 $deferred \u9879\u9009\u62e9\u7a0d\u540e\u5b8c\u6210',
+                    style: const TextStyle(
+                        color: FubaoColors.orangeStrong,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 3),
+                ],
                 const Text('继续加油，完成所有任务吧！',
                     style:
                         TextStyle(color: FubaoColors.inkMuted, fontSize: 12)),
@@ -407,7 +420,8 @@ class _MoodCard extends StatelessWidget {
               child: Center(
                 child: Icon(
                   _moodIcon(reading?.value['text']?.toString()),
-                  key: Key('mood-icon-${_moodKey(reading?.value['text']?.toString())}'),
+                  key: Key(
+                      'mood-icon-${_moodKey(reading?.value['text']?.toString())}'),
                   size: 62,
                   color: _moodColor(reading?.value['text']?.toString()),
                 ),

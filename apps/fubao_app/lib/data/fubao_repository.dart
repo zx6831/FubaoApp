@@ -38,8 +38,9 @@ abstract interface class FubaoRepository implements Listenable {
 
   Future<void> recordHealth(
     HealthMetric metric,
-    Map<String, dynamic> value,
-  );
+    Map<String, dynamic> value, {
+    String? taskId,
+  });
 
   Future<void> updateAlert(
     String id,

@@ -85,8 +85,22 @@ class _PlanDetailPageState extends State<PlanDetailPage> {
                                 : '待完成'),
               ]),
             ),
+            if (task?.isSkipped == true) ...[
+              const SizedBox(height: 10),
+              const FubaoCard(
+                color: FubaoColors.orangeSoft,
+                borderColor: FubaoColors.orangeStrong,
+                child: Row(children: [
+                  Icon(Icons.schedule_rounded, color: FubaoColors.orangeStrong),
+                  SizedBox(width: 10),
+                  Expanded(
+                      child: Text(
+                          '\u957f\u8f88\u5df2\u9009\u62e9\u7a0d\u540e\u5b8c\u6210\u8fd9\u9879\u4efb\u52a1')),
+                ]),
+              ),
+            ],
             const SizedBox(height: 18),
-            if (task != null && status != 'ended') ...[
+            if (task != null && !task.isCompleted && status == 'active') ...[
               FilledButton.icon(
                 onPressed: busy ? null : () => _remind(task),
                 icon: const Icon(Icons.campaign_rounded),

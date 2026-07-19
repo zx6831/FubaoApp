@@ -26,6 +26,7 @@ class HealthTask {
     this.recordedAt,
     this.recordData,
     this.scheduledDate,
+    this.remindedAt,
   });
 
   final String id;
@@ -39,6 +40,7 @@ class HealthTask {
   final DateTime? recordedAt;
   final Map<String, dynamic>? recordData;
   final DateTime? scheduledDate;
+  final DateTime? remindedAt;
 
   HealthTask copyWith({
     bool? isCompleted,
@@ -46,6 +48,8 @@ class HealthTask {
     DateTime? recordedAt,
     Map<String, dynamic>? recordData,
     DateTime? scheduledDate,
+    DateTime? remindedAt,
+    bool clearReminder = false,
   }) =>
       HealthTask(
         id: id,
@@ -59,6 +63,7 @@ class HealthTask {
         recordedAt: recordedAt ?? this.recordedAt,
         recordData: recordData ?? this.recordData,
         scheduledDate: scheduledDate ?? this.scheduledDate,
+        remindedAt: clearReminder ? null : remindedAt ?? this.remindedAt,
       );
 }
 

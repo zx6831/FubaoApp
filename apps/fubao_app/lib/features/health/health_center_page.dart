@@ -87,6 +87,7 @@ Future<bool> showHealthRecordDialog(
   FubaoRepository repository,
   HealthMetric metric, {
   bool elder = false,
+  String? taskId,
 }) async {
   final result = await showDialog<Map<String, dynamic>>(
     context: context,
@@ -113,7 +114,7 @@ Future<bool> showHealthRecordDialog(
     ),
   );
   if (confirmed != true) return false;
-  await repository.recordHealth(metric, result);
+  await repository.recordHealth(metric, result, taskId: taskId);
   return true;
 }
 

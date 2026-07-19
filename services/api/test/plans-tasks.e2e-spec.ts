@@ -100,6 +100,52 @@ describe('Plans and daily task lifecycle', () => {
     expect(synced.body.data.progress).toEqual({ total: 1, completed: 1, skipped: 0, pending: 0 });
   });
 
+  it('keeps same-kind task instances independent and syncs reminder and deferred state', async () => {
+    const create = async (title: string, time: string) => {
+      const response = await request(app.getHttpServer())
+        .post('/api/plans').set(auth(childToken))
+        .send({
+          kind: 'bloodPressure', title, startsOn: today(), timezone: 'Asia/Shanghai',
+          schedule: { time, daysOfWeek: [1, 2, 3, 4, 5, 6, 7] },
+        }).expect(201);
+      return response.body.data.id as string;
+    };
+    const firstPlanId = await create('Morning pressure', '09:00');
+    const secondPlanId = await create('Evening pressure', '21:00');
+    const initial = await request(app.getHttpServer())
+      .get('/api/tasks/today').set(auth(elderToken)).expect(200);
+    const first = initial.body.data.items.find((item: { planId: string }) => item.planId === firstPlanId);
+    const second = initial.body.data.items.find((item: { planId: string }) => item.planId === secondPlanId);
+
+    await request(app.getHttpServer())
+      .post(`/api/tasks/${second.id}/remind`).set(auth(childToken)).expect(201)
+      .expect(({ body }) => expect(body.data).toMatchObject({ accepted: false, channel: 'inApp' }));
+    const reminded = await request(app.getHttpServer())
+      .get('/api/tasks/today').set(auth(elderToken)).expect(200);
+    expect(reminded.body.data.items.find((item: { id: string }) => item.id === second.id).remindedAt)
+      .not.toBeNull();
+
+    await request(app.getHttpServer())
+      .post(`/api/tasks/${second.id}/skip`).set(auth(elderToken))
+      .set('Idempotency-Key', `defer-${second.id}`).send({}).expect(201);
+    const deferred = await request(app.getHttpServer())
+      .get('/api/tasks/today').set(auth(childToken)).expect(200);
+    expect(deferred.body.data.items.find((item: { id: string }) => item.id === second.id).status)
+      .toBe('skipped');
+
+    await request(app.getHttpServer())
+      .post(`/api/tasks/${second.id}/complete`).set(auth(elderToken))
+      .set('Idempotency-Key', `complete-after-defer-${second.id}`)
+      .send({ data: { systolic: 126, diastolic: 78 } }).expect(201);
+    const completed = await request(app.getHttpServer())
+      .get('/api/tasks/today').set(auth(childToken)).expect(200);
+    const firstAfter = completed.body.data.items.find((item: { id: string }) => item.id === first.id);
+    const secondAfter = completed.body.data.items.find((item: { id: string }) => item.id === second.id);
+    expect(firstAfter.status).toBe('pending');
+    expect(secondAfter.status).toBe('completed');
+    expect(secondAfter.remindedAt).toBeNull();
+  });
+
   it('records skipped tasks, sends simulated TTS, and preserves ended plans', async () => {
     const created = await request(app.getHttpServer())
       .post('/api/plans').set(auth(childToken))
@@ -125,6 +171,17 @@ describe('Plans and daily task lifecycle', () => {
     await request(app.getHttpServer()).patch(`/api/plans/${planId}/status`).set(auth(childToken))
       .send({ status: 'paused' }).expect(200)
       .expect(({ body }) => expect(body.data.status).toBe('paused'));
+    const pausedTasks = await request(app.getHttpServer())
+      .get('/api/tasks/today').set(auth(elderToken)).expect(200);
+    expect(pausedTasks.body.data.items.some((item: { planId: string }) => item.planId === planId)).toBe(false);
+    await request(app.getHttpServer()).patch(`/api/plans/${planId}/status`).set(auth(childToken))
+      .send({ status: 'active' }).expect(200);
+    const resumedTasks = await request(app.getHttpServer())
+      .get('/api/tasks/today').set(auth(elderToken)).expect(200);
+    const resumed = resumedTasks.body.data.items.find((item: { planId: string }) => item.planId === planId);
+    expect(resumed.status).toBe('skipped');
+    expect(resumed.remindedAt).toBeNull();
+
     await request(app.getHttpServer()).patch(`/api/plans/${planId}/status`).set(auth(childToken))
       .send({ status: 'ended' }).expect(200);
     await request(app.getHttpServer()).patch(`/api/plans/${planId}/status`).set(auth(childToken))
@@ -132,7 +189,7 @@ describe('Plans and daily task lifecycle', () => {
 
     const history = await request(app.getHttpServer())
       .get(`/api/tasks/history?from=${today()}&to=${today()}`).set(auth(childToken)).expect(200);
-    expect(history.body.data.items).toHaveLength(2);
+    expect(history.body.data.items.some((item: { planId: string }) => item.planId === planId)).toBe(true);
     await request(app.getHttpServer()).delete(`/api/plans/${planId}`).set(auth(childToken)).expect(404);
   });
 });

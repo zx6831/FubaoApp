@@ -18,6 +18,12 @@ class ElderHomePage extends StatelessWidget {
           animation: repository,
           builder: (context, _) {
             final tasks = _orderedTasks(repository.tasks);
+            final remindedTasks = tasks
+                .where((item) => item.remindedAt != null && !item.isCompleted)
+                .toList()
+              ..sort((a, b) => b.remindedAt!.compareTo(a.remindedAt!));
+            final reminderTask =
+                remindedTasks.isEmpty ? null : remindedTasks.first;
             final task = _firstPendingTask(tasks);
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
@@ -42,6 +48,10 @@ class ElderHomePage extends StatelessWidget {
                   ),
                 ]),
                 const SizedBox(height: 20),
+                if (reminderTask != null) ...[
+                  _FamilyReminderBanner(task: reminderTask),
+                  const SizedBox(height: 14),
+                ],
                 if (tasks.isEmpty)
                   FubaoCard(
                     padding: const EdgeInsets.all(28),
@@ -91,6 +101,59 @@ class ElderHomePage extends StatelessWidget {
               ],
             );
           },
+        ),
+      );
+}
+
+class _FamilyReminderBanner extends StatelessWidget {
+  const _FamilyReminderBanner({required this.task});
+
+  final HealthTask task;
+
+  @override
+  Widget build(BuildContext context) => FubaoCard(
+        key: const Key('elder-family-reminder-banner'),
+        color: FubaoColors.orangeSoft,
+        borderColor: FubaoColors.orangeStrong,
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.campaign_rounded,
+                color: FubaoColors.orangeStrong,
+                size: 30,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '\u5bb6\u4eba\u63d0\u9192\uff1a\u73b0\u5728\u5b8c\u6210\u300c${task.title}\u300d',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: FubaoColors.orangeStrong,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '\u5b8c\u6210\u8fd9\u9879\u4efb\u52a1\u540e\uff0c\u63d0\u9192\u4f1a\u81ea\u52a8\u6d88\u5931',
+                    style: TextStyle(color: FubaoColors.inkMuted),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       );
 }
@@ -439,7 +502,13 @@ Future<void> _completeTask(
 ) async {
   final metric = presentation.metric;
   if (metric != null) {
-    await showHealthRecordDialog(context, repository, metric, elder: true);
+    await showHealthRecordDialog(
+      context,
+      repository,
+      metric,
+      elder: true,
+      taskId: task.id,
+    );
     return;
   }
   await repository.setTaskCompleted(task.id, true);

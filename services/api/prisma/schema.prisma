@@ -282,6 +282,7 @@ model DailyTask {
   title        String
   subtitle     String?
   reminderAt   DateTime?
+  remindedAt   DateTime?
   status       TaskStatus   @default(pending)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt

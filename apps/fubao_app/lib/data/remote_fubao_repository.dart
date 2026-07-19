@@ -277,18 +277,22 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
   @override
   Future<bool> remindTask(String id) async {
     final data = await _api.post('tasks/$id/remind');
+    await refresh();
     return data['accepted'] == true;
   }
 
   @override
   Future<void> recordHealth(
     HealthMetric metric,
-    Map<String, dynamic> value,
-  ) async {
+    Map<String, dynamic> value, {
+    String? taskId,
+  }) async {
     HealthTask? matchingTask;
     if (_api.session?.role == AppRole.elder) {
       for (final task in _tasks) {
-        if (!task.isCompleted && task.kind == _taskKindForMetric(metric)) {
+        if (!task.isCompleted &&
+            task.kind == _taskKindForMetric(metric) &&
+            (taskId == null || task.id == taskId)) {
           matchingTask = task;
           break;
         }
@@ -438,6 +442,7 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
           : DateTime.tryParse(record!['completedAt'].toString()),
       recordData: (record?['data'] as Map?)?.cast<String, dynamic>(),
       scheduledDate: DateTime.tryParse(json['date']?.toString() ?? ''),
+      remindedAt: DateTime.tryParse(json['remindedAt']?.toString() ?? ''),
     );
   }
 
@@ -582,6 +587,7 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
         isCompleted: completed,
         isSkipped: skipped,
         recordedAt: DateTime.now(),
+        clearReminder: completed,
       );
     }
     unawaited(_saveSnapshot());
@@ -669,6 +675,7 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
         'recordedAt': task.recordedAt?.toIso8601String(),
         'recordData': task.recordData,
         'scheduledDate': task.scheduledDate?.toIso8601String(),
+        'remindedAt': task.remindedAt?.toIso8601String(),
       };
 
   HealthTask _taskFromCache(Map<String, dynamic> json) => HealthTask(
@@ -684,6 +691,7 @@ class RemoteFubaoRepository extends ChangeNotifier implements FubaoRepository {
         recordData: (json['recordData'] as Map?)?.cast<String, dynamic>(),
         scheduledDate:
             DateTime.tryParse(json['scheduledDate']?.toString() ?? ''),
+        remindedAt: DateTime.tryParse(json['remindedAt']?.toString() ?? ''),
       );
 
   Map<String, dynamic> _planToCache(HealthPlan plan) => {

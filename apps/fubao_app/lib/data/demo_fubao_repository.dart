@@ -39,6 +39,7 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
         ];
 
   List<HealthTask> _tasks;
+  int _nextPlanId = 1;
   final Map<String, dynamic> _device = {
     'id': 'demo-device',
     'serialNumber': 'FB-DEMO-001',
@@ -67,7 +68,14 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   };
 
   @override
-  List<HealthTask> get tasks => List.unmodifiable(_tasks);
+  List<HealthTask> get tasks => List.unmodifiable(
+        _tasks.where((task) {
+          final planId = task.planId;
+          if (planId == null) return true;
+          final index = plans.indexWhere((plan) => plan.id == planId);
+          return index < 0 || plans[index].status == 'active';
+        }),
+      );
 
   @override
   final List<HealthPlan> plans = [
@@ -110,10 +118,10 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   ];
 
   @override
-  int get completedTaskCount => _tasks.where((task) => task.isCompleted).length;
+  int get completedTaskCount => tasks.where((task) => task.isCompleted).length;
   @override
   bool get allTasksCompleted =>
-      _tasks.isNotEmpty && _tasks.every((task) => task.isCompleted);
+      tasks.isNotEmpty && tasks.every((task) => task.isCompleted);
 
   @override
   final List<HealthReading> healthReadings = [
@@ -191,13 +199,13 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
     final start = _dateOnly(from);
     final end = _dateOnly(to);
     if (today.isBefore(start) || today.isAfter(end)) return const [];
-    return [for (final task in tasks) task.copyWith(scheduledDate: today)];
+    return [for (final task in _tasks) task.copyWith(scheduledDate: today)];
   }
 
   @override
   Future<HealthPlan> createPlan(PlanDraft draft) async {
     final plan = HealthPlan(
-      id: 'demo-${DateTime.now().microsecondsSinceEpoch}',
+      id: 'demo-${DateTime.now().microsecondsSinceEpoch}-${_nextPlanId++}',
       title: draft.title,
       description: draft.subtitle,
       completed: 0,
@@ -208,6 +216,18 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
       daysOfWeek: draft.daysOfWeek,
     );
     plans.add(plan);
+    final now = DateTime.now();
+    if (draft.daysOfWeek.contains(now.weekday)) {
+      _tasks.add(HealthTask(
+        id: 'task-${plan.id}',
+        planId: plan.id,
+        title: draft.title,
+        subtitle: draft.subtitle,
+        timeLabel: draft.reminderTime,
+        kind: draft.kind,
+        scheduledDate: _dateOnly(now),
+      ));
+    }
     notifyListeners();
     return plan;
   }
@@ -220,7 +240,14 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
   }) async {
     _tasks = [
       for (final task in _tasks)
-        if (task.id == id) task.copyWith(isCompleted: value) else task,
+        if (task.id == id)
+          task.copyWith(
+            isCompleted: value,
+            isSkipped: value ? false : task.isSkipped,
+            clearReminder: value,
+          )
+        else
+          task,
     ];
     notifyListeners();
   }
@@ -254,17 +281,34 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
       reminderTime: plan.reminderTime,
       daysOfWeek: plan.daysOfWeek,
     );
+    if (status != 'active') {
+      _tasks = [
+        for (final task in _tasks)
+          if (task.planId == id) task.copyWith(clearReminder: true) else task,
+      ];
+    }
     notifyListeners();
   }
 
   @override
-  Future<bool> remindTask(String id) async => true;
+  Future<bool> remindTask(String id) async {
+    _tasks = [
+      for (final task in _tasks)
+        if (task.id == id && !task.isCompleted)
+          task.copyWith(remindedAt: DateTime.now())
+        else
+          task,
+    ];
+    notifyListeners();
+    return true;
+  }
 
   @override
   Future<void> recordHealth(
     HealthMetric metric,
-    Map<String, dynamic> value,
-  ) async {
+    Map<String, dynamic> value, {
+    String? taskId,
+  }) async {
     healthReadings.insert(
         0,
         HealthReading(
@@ -279,18 +323,25 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
       HealthMetric.mood => TaskKind.mood,
       HealthMetric.weight => TaskKind.weight,
     };
-    _tasks = [
-      for (final task in _tasks)
-        if (task.kind == taskKind)
-          task.copyWith(
-            isCompleted: true,
-            isSkipped: false,
-            recordedAt: DateTime.now(),
-            recordData: value,
-          )
-        else
-          task,
-    ];
+    var matchingIndex = _tasks.indexWhere(
+      (task) =>
+          !task.isCompleted &&
+          task.kind == taskKind &&
+          (taskId == null || task.id == taskId),
+    );
+    if (matchingIndex < 0 && taskId == null) {
+      matchingIndex = _tasks.indexWhere((task) => task.kind == taskKind);
+    }
+    if (matchingIndex >= 0) {
+      final task = _tasks[matchingIndex];
+      _tasks[matchingIndex] = task.copyWith(
+        isCompleted: true,
+        isSkipped: false,
+        recordedAt: DateTime.now(),
+        recordData: value,
+        clearReminder: true,
+      );
+    }
     notifyListeners();
   }
 

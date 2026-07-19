@@ -94,6 +94,7 @@ export interface MemoryDailyTask {
   title: string;
   subtitle?: string;
   reminderAt: Date;
+  remindedAt: Date | null;
   status: MemoryTaskStatus;
   createdAt: Date;
   updatedAt: Date;
