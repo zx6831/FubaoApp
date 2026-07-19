@@ -95,7 +95,7 @@ class _ElderPlansPageState extends State<ElderPlansPage> {
                   const SizedBox(height: 12),
                   _ElderTaskCard(
                     task: nextTask,
-                    illustration: _illustrationFor(nextTask.kind),
+                    illustration: illustrationForTask(nextTask.kind),
                     onTap: () => _completePlanTask(
                       context,
                       widget.repository,
@@ -120,7 +120,7 @@ class _ElderPlansPageState extends State<ElderPlansPage> {
                   for (var i = 0; i < ordered.length; i++) ...[
                     _ElderTaskCard(
                       task: ordered[i],
-                      illustration: _illustrationFor(ordered[i].kind),
+                      illustration: illustrationForTask(ordered[i].kind),
                       completed: ordered[i].isCompleted,
                       onTap: () => _completePlanTask(
                         context,
@@ -146,14 +146,6 @@ int _taskMinutes(HealthTask task) {
   if (task.timeLabel.contains('晚上') && hour < 12) hour += 12;
   return hour * 60 + minute;
 }
-
-FubaoIllustration _illustrationFor(TaskKind kind) => switch (kind) {
-      TaskKind.medicine => FubaoIllustration.pill,
-      TaskKind.bloodPressure => FubaoIllustration.elderBloodPressureDevice,
-      TaskKind.walk => FubaoIllustration.elderPark,
-      TaskKind.mood => FubaoIllustration.elderMood,
-      _ => FubaoIllustration.planClipboard,
-    };
 
 class _ElderWeekStrip extends StatelessWidget {
   const _ElderWeekStrip({

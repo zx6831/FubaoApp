@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../data/fubao_repository.dart';
@@ -133,6 +135,22 @@ class _ElderRecordHealthDialogState extends State<_ElderRecordHealthDialog> {
   String? errorText;
 
   @override
+  void initState() {
+    super.initState();
+    switch (widget.metric) {
+      case HealthMetric.bloodPressure:
+        primary = 120.0;
+        secondary = 80.0;
+      case HealthMetric.bloodGlucose:
+        primary = 5.5;
+      case HealthMetric.weight:
+        primary = 60.0;
+      case HealthMetric.mood:
+        break;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) => AlertDialog(
         title: Text('记录${_metricLabel(widget.metric)}'),
         content: SizedBox(
@@ -180,17 +198,41 @@ class _ElderRecordHealthDialogState extends State<_ElderRecordHealthDialog> {
 
   List<Widget> _selectionFields() => switch (widget.metric) {
         HealthMetric.bloodPressure => [
-            _choiceTitle('收缩压（高压）'),
-            _numberChoices([100, 110, 120, 130, 140, 150, 160], true),
+            _numberDial(
+              title: '收缩压（高压）',
+              unit: 'mmHg',
+              min: 80,
+              max: 200,
+              first: true,
+            ),
             const SizedBox(height: 14),
-            _choiceTitle('舒张压（低压）'),
-            _numberChoices([60, 70, 80, 90, 100], false),
+            _numberDial(
+              title: '舒张压（低压）',
+              unit: 'mmHg',
+              min: 40,
+              max: 130,
+              first: false,
+            ),
           ],
         HealthMetric.bloodGlucose => [
-            _numberChoices([4.5, 5.5, 6.5, 7.0, 8.0, 10.0], true),
+            _numberDial(
+              title: '血糖',
+              unit: 'mmol/L',
+              min: 2,
+              max: 20,
+              step: .1,
+              first: true,
+            ),
           ],
         HealthMetric.weight => [
-            _numberChoices([45, 50, 55, 60, 65, 70, 75], true),
+            _numberDial(
+              title: '体重',
+              unit: 'kg',
+              min: 30,
+              max: 150,
+              step: .5,
+              first: true,
+            ),
           ],
         HealthMetric.mood => [
             Wrap(
@@ -217,34 +259,32 @@ class _ElderRecordHealthDialogState extends State<_ElderRecordHealthDialog> {
           ],
       };
 
-  Widget _choiceTitle(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-      );
-
-  Widget _numberChoices(List<num> values, bool first) => Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final value in values)
-            ChoiceChip(
-              key: Key(
-                  'elder-${first ? 'primary' : 'secondary'}-${_numberLabel(value)}'),
-              selected: (first ? primary : secondary) == value,
-              onSelected: (_) => setState(() {
-                if (first) {
-                  primary = value;
-                } else {
-                  secondary = value;
-                }
-              }),
-              label: Text(_numberLabel(value),
-                  style: const TextStyle(fontSize: 18)),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            ),
-        ],
-      );
+  Widget _numberDial({
+    required String title,
+    required String unit,
+    required double min,
+    required double max,
+    required bool first,
+    double step = 1,
+  }) {
+    final value = ((first ? primary : secondary) as num).toDouble();
+    return _HealthValueDial(
+      key: Key('elder-${first ? 'primary' : 'secondary'}-dial'),
+      title: title,
+      unit: unit,
+      min: min,
+      max: max,
+      step: step,
+      value: value,
+      onChanged: (value) => setState(() {
+        if (first) {
+          primary = value;
+        } else {
+          secondary = value;
+        }
+      }),
+    );
+  }
 
   List<Widget> _customFields() => [
         TextFormField(
@@ -290,11 +330,239 @@ class _ElderRecordHealthDialogState extends State<_ElderRecordHealthDialog> {
   }
 }
 
+class _HealthValueDial extends StatelessWidget {
+  const _HealthValueDial({
+    required this.title,
+    required this.unit,
+    required this.min,
+    required this.max,
+    required this.step,
+    required this.value,
+    required this.onChanged,
+    super.key,
+  });
+
+  final String title;
+  final String unit;
+  final double min;
+  final double max;
+  final double step;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  void _updateValue(Offset position, Size size) {
+    final center = Offset(size.width / 2, size.height - 30);
+    var angle = math.atan2(position.dy - center.dy, position.dx - center.dx);
+    if (angle < 0) angle += math.pi * 2;
+    if (angle < math.pi) {
+      angle = position.dx < center.dx ? math.pi : math.pi * 2;
+    }
+    final progress = ((angle - math.pi) / math.pi).clamp(0.0, 1.0);
+    final raw = min + (max - min) * progress;
+    final snapped = (raw / step).round() * step;
+    final precision = step < 1 ? 1 : 0;
+    onChanged(double.parse(snapped.clamp(min, max).toStringAsFixed(precision)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shownValue = _numberLabel(value);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 8),
+        Semantics(
+          label: title,
+          value: '$shownValue $unit',
+          increasedValue: _numberLabel((value + step).clamp(min, max)),
+          decreasedValue: _numberLabel((value - step).clamp(min, max)),
+          onIncrease: () => onChanged((value + step).clamp(min, max)),
+          onDecrease: () => onChanged((value - step).clamp(min, max)),
+          child: Container(
+            height: 170,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2FAF6),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFCDEDE0)),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final size = Size(constraints.maxWidth, constraints.maxHeight);
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (details) =>
+                      _updateValue(details.localPosition, size),
+                  onPanStart: (details) =>
+                      _updateValue(details.localPosition, size),
+                  onPanUpdate: (details) =>
+                      _updateValue(details.localPosition, size),
+                  child: CustomPaint(
+                    painter: _HealthDialPainter(
+                      min: min,
+                      max: max,
+                      value: value,
+                    ),
+                    child: Align(
+                      alignment: const Alignment(0, .72),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(99),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x1645C38F),
+                              blurRadius: 8,
+                              offset: Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: shownValue,
+                                style: const TextStyle(
+                                  color: FubaoColors.mintStrong,
+                                  fontSize: 27,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              TextSpan(
+                                text: '  $unit',
+                                style: const TextStyle(
+                                  color: FubaoColors.inkMuted,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 5),
+        const Center(
+          child: Text(
+            '沿仪表盘滑动指针选择数值',
+            style: TextStyle(color: FubaoColors.inkMuted, fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HealthDialPainter extends CustomPainter {
+  const _HealthDialPainter({
+    required this.min,
+    required this.max,
+    required this.value,
+  });
+
+  final double min;
+  final double max;
+  final double value;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height - 30);
+    final radius = math.min(size.width * .39, size.height - 54);
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    const start = math.pi;
+    const sweep = math.pi;
+    final progress = ((value - min) / (max - min)).clamp(0.0, 1.0);
+
+    final track = Paint()
+      ..color = const Color(0xFFDCE7E2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, start, sweep, false, track);
+
+    final active = Paint()
+      ..shader = const LinearGradient(
+        colors: [FubaoColors.mint, FubaoColors.mintStrong],
+      ).createShader(Rect.fromLTWH(
+          center.dx - radius, center.dy - radius, radius * 2, radius))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, start, sweep * progress, false, active);
+
+    final tickPaint = Paint()
+      ..color = FubaoColors.inkMuted.withValues(alpha: .55)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    for (var index = 0; index <= 10; index++) {
+      final angle = start + sweep * index / 10;
+      final outer =
+          center + Offset(math.cos(angle), math.sin(angle)) * (radius - 15);
+      final inner = center +
+          Offset(math.cos(angle), math.sin(angle)) *
+              (radius - (index % 5 == 0 ? 27 : 22));
+      canvas.drawLine(inner, outer, tickPaint);
+    }
+
+    final angle = start + sweep * progress;
+    final needleEnd =
+        center + Offset(math.cos(angle), math.sin(angle)) * (radius - 25);
+    final needle = Paint()
+      ..color = FubaoColors.orangeStrong
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(center, needleEnd, needle);
+    canvas.drawCircle(center, 11, Paint()..color = Colors.white);
+    canvas.drawCircle(center, 7, Paint()..color = FubaoColors.orangeStrong);
+
+    _paintLabel(canvas, _numberLabel(min),
+        Offset(center.dx - radius - 2, center.dy - 20), TextAlign.left);
+    _paintLabel(canvas, _numberLabel(max),
+        Offset(center.dx + radius + 2, center.dy - 20), TextAlign.right);
+  }
+
+  void _paintLabel(
+      Canvas canvas, String text, Offset anchor, TextAlign textAlign) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: FubaoColors.inkMuted,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textAlign: textAlign,
+    )..layout();
+    final dx =
+        textAlign == TextAlign.right ? anchor.dx - painter.width : anchor.dx;
+    painter.paint(canvas, Offset(dx, anchor.dy));
+  }
+
+  @override
+  bool shouldRepaint(covariant _HealthDialPainter oldDelegate) =>
+      oldDelegate.value != value ||
+      oldDelegate.min != min ||
+      oldDelegate.max != max;
+}
+
 String _elderPrompt(HealthMetric metric) => switch (metric) {
-      HealthMetric.bloodPressure => '选择最接近血压仪读数的数值',
-      HealthMetric.bloodGlucose => '选择最接近血糖仪读数的数值',
+      HealthMetric.bloodPressure => '拨动指针，输入血压仪上的数值',
+      HealthMetric.bloodGlucose => '拨动指针，输入血糖仪上的数值',
       HealthMetric.mood => '今天的心情更接近哪一种？',
-      HealthMetric.weight => '选择最接近当前体重的数值',
+      HealthMetric.weight => '拨动指针，输入体重秤上的数值',
     };
 
 class _RecordHealthDialog extends StatefulWidget {

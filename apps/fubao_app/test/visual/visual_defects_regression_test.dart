@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fubao_app/data/demo_fubao_repository.dart';
 import 'package:fubao_app/design/fubao_colors.dart';
+import 'package:fubao_app/design/fubao_illustrations.dart';
 import 'package:fubao_app/design/fubao_theme.dart';
+import 'package:fubao_app/domain/models.dart';
 import 'package:fubao_app/features/child/child_plans_page.dart';
 import 'package:fubao_app/features/child/child_home_page.dart';
 import 'package:fubao_app/features/child/child_profile_page.dart';
@@ -96,5 +98,25 @@ void main() {
     );
     expect(find.textContaining('◷'), findsNothing);
     expect(find.byIcon(Icons.access_time_rounded), findsAtLeastNWidgets(1));
+  });
+
+  testWidgets('unlit spark uses a dedicated transparent asset', (tester) async {
+    await pumpPhonePage(
+      tester,
+      const SparkIllustration(
+        spark: FamilySpark(
+          lit: false,
+          streakDays: 0,
+          childActive: true,
+          elderActive: false,
+        ),
+      ),
+    );
+
+    final asset = tester.widget<FubaoIllustrationAsset>(
+      find.byType(FubaoIllustrationAsset),
+    );
+    expect(asset.illustration, FubaoIllustration.sparkUnlit);
+    expect(find.byType(ColorFiltered), findsNothing);
   });
 }

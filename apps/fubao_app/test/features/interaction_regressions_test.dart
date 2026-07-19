@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fubao_app/data/demo_fubao_repository.dart';
+import 'package:fubao_app/design/fubao_illustrations.dart';
 import 'package:fubao_app/design/fubao_theme.dart';
 import 'package:fubao_app/domain/models.dart';
 import 'package:fubao_app/features/auth/family_binding_page.dart';
@@ -12,6 +13,7 @@ import 'package:fubao_app/features/elder/elder_plans_page.dart';
 import 'package:fubao_app/features/elder/elder_topics_page.dart';
 import 'package:fubao_app/features/health/health_center_page.dart';
 import 'package:fubao_app/features/profile/profile_settings_page.dart';
+import 'package:fubao_app/widgets/fubao_widgets.dart';
 
 void main() {
   Future<void> pumpPhone(WidgetTester tester, Widget page) async {
@@ -54,8 +56,7 @@ void main() {
     expect(find.text('本周还没有任务'), findsOneWidget);
     expect(find.text('本月还没有任务'), findsOneWidget);
     expect(find.text('还没有正在进行的计划'), findsOneWidget);
-    expect(find.text('添加第一个健康计划后，任务会从执行日期开始生成'),
-        findsOneWidget);
+    expect(find.text('添加第一个健康计划后，任务会从执行日期开始生成'), findsOneWidget);
     expect(find.byIcon(Icons.check_rounded), findsNothing);
   });
 
@@ -171,14 +172,97 @@ void main() {
 
     await tester.tap(find.text('血压').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('elder-primary-120')));
-    await tester.tap(find.byKey(const Key('elder-secondary-80')));
+    expect(find.byKey(const Key('elder-primary-dial')), findsOneWidget);
+    expect(find.byKey(const Key('elder-secondary-dial')), findsOneWidget);
+    expect(find.text('沿仪表盘滑动指针选择数值'), findsNWidgets(2));
+    expect(find.text('自定义输入'), findsOneWidget);
     await tester.tap(find.text('下一步'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
     expect(find.text('确认本次记录'), findsOneWidget);
     expect(find.text('120 / 80 mmHg'), findsOneWidget);
+  });
+
+  testWidgets('glucose and weight use dials and retain custom input',
+      (tester) async {
+    final repository = DemoFubaoRepository();
+    await pumpPhone(
+      tester,
+      HealthCenterPage(repository: repository, elder: true),
+    );
+
+    for (final metric in ['血糖', '体重']) {
+      await tester.tap(find.text(metric).first);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('elder-primary-dial')), findsOneWidget);
+      await tester.tap(find.text('自定义输入'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('record-primary-value')), findsOneWidget);
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('plan illustrations follow task kind including custom plans',
+      (tester) async {
+    final repository = _PlansRepository();
+    await pumpPhone(
+      tester,
+      Scaffold(body: ChildPlansPage(repository: repository)),
+    );
+
+    final customBubble = tester.widget<FubaoIllustrationBubble>(
+      find.byKey(const Key('child-plan-illustration-custom')),
+    );
+    final medicineBubble = tester.widget<FubaoIllustrationBubble>(
+      find.byKey(const Key('child-plan-illustration-medicine')),
+    );
+    expect(customBubble.illustration, FubaoIllustration.pencil);
+    expect(medicineBubble.illustration, FubaoIllustration.pill);
+    expect(illustrationForTask(TaskKind.custom), FubaoIllustration.pencil);
+  });
+
+  testWidgets('elder home pages tasks by time and advances past completed work',
+      (tester) async {
+    final repository = _TaskRepository([
+      HealthTask(
+        id: 'c',
+        title: '任务C',
+        subtitle: '',
+        timeLabel: '上午 10:00',
+        kind: TaskKind.medicine,
+      ),
+      HealthTask(
+        id: 'b',
+        title: '任务B',
+        subtitle: '',
+        timeLabel: '上午 9:00',
+        kind: TaskKind.medicine,
+        isCompleted: true,
+      ),
+      HealthTask(
+        id: 'a',
+        title: '任务A',
+        subtitle: '',
+        timeLabel: '上午 8:00',
+        kind: TaskKind.medicine,
+      ),
+    ]);
+    await pumpPhone(
+      tester,
+      Scaffold(body: ElderHomePage(repository: repository)),
+    );
+
+    expect(find.byKey(const Key('elder-task-pager')), findsOneWidget);
+    expect(find.text('1/3'), findsOneWidget);
+    expect(find.text('任务A'), findsOneWidget);
+
+    await tester.tap(find.text('我已经吃了').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('3/3'), findsOneWidget);
+    expect(find.text('任务C'), findsOneWidget);
   });
 
   testWidgets('elder week strip uses real weekday and only actual task history',
@@ -310,6 +394,42 @@ class _TaskRepository extends DemoFubaoRepository {
 
   @override
   Future<List<HealthTask>> taskHistory(DateTime from, DateTime to) async => [];
+
+  @override
+  Future<void> setTaskCompleted(
+    String taskId,
+    bool completed, {
+    String? idempotencyKey,
+  }) async {
+    final index = items.indexWhere((task) => task.id == taskId);
+    if (index < 0) return;
+    items[index] = items[index].copyWith(isCompleted: completed);
+    notifyListeners();
+  }
+}
+
+class _PlansRepository extends _EmptyRepository {
+  @override
+  List<HealthPlan> get plans => const [
+        HealthPlan(
+          id: 'custom',
+          title: '自定义计划',
+          description: '灵活设置专属计划',
+          completed: 0,
+          total: 1,
+          icon: Icons.fact_check_outlined,
+          kind: TaskKind.custom,
+        ),
+        HealthPlan(
+          id: 'medicine',
+          title: '用药提醒',
+          description: '按时服药',
+          completed: 0,
+          total: 1,
+          icon: Icons.medication_rounded,
+          kind: TaskKind.medicine,
+        ),
+      ];
 }
 
 class _EmptyRepository extends DemoFubaoRepository {

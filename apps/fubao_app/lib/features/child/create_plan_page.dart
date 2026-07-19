@@ -10,7 +10,6 @@ typedef _PlanOption = ({
   String title,
   String description,
   TaskKind kind,
-  FubaoIllustration illustration,
 });
 
 class CreatePlanPage extends StatefulWidget {
@@ -36,27 +35,11 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
     (
       title: '血压管理',
       description: '记录血压，规律监测，稳稳守护',
-      kind: TaskKind.bloodPressure,
-      illustration: FubaoIllustration.bloodPressureDevice
+      kind: TaskKind.bloodPressure
     ),
-    (
-      title: '用药提醒',
-      description: '按时提醒，不漏服，吃药更安心',
-      kind: TaskKind.medicine,
-      illustration: FubaoIllustration.medicineBox
-    ),
-    (
-      title: '健康生活习惯',
-      description: '规律作息，适度运动，生活更健康',
-      kind: TaskKind.walk,
-      illustration: FubaoIllustration.walkingShoe
-    ),
-    (
-      title: '自定义计划',
-      description: '按长辈情况，灵活设置专属计划',
-      kind: TaskKind.custom,
-      illustration: FubaoIllustration.pencil
-    ),
+    (title: '用药提醒', description: '按时提醒，不漏服，吃药更安心', kind: TaskKind.medicine),
+    (title: '健康生活习惯', description: '规律作息，适度运动，生活更健康', kind: TaskKind.walk),
+    (title: '自定义计划', description: '按长辈情况，灵活设置专属计划', kind: TaskKind.custom),
   ];
 
   @override
@@ -350,7 +333,10 @@ class _OptionCard extends StatelessWidget {
             height: 78,
             child: Row(children: [
               FubaoIllustrationBubble(
-                  illustration: option.illustration, size: 82, circular: false),
+                  key: Key('create-plan-illustration-${option.kind.name}'),
+                  illustration: illustrationForTask(option.kind),
+                  size: 82,
+                  circular: false),
               const SizedBox(width: 12),
               Expanded(
                   child: Column(

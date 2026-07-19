@@ -1,5 +1,6 @@
 enum FubaoIllustration {
   spark('spark.png'),
+  sparkUnlit('spark-unlit.png'),
   clipboard('clipboard.png'),
   mood('mood.png'),
   coffee('coffee.png'),

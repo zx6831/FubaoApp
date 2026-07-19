@@ -411,21 +411,10 @@ class SparkIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final image = FubaoIllustrationAsset(
-      FubaoIllustration.spark,
+    return FubaoIllustrationAsset(
+      spark.lit ? FubaoIllustration.spark : FubaoIllustration.sparkUnlit,
       width: width,
       height: height,
-    );
-    if (spark.lit) return image;
-    return Opacity(
-      opacity: .58,
-      child: ColorFiltered(
-        colorFilter: const ColorFilter.mode(
-          Color(0xFF9CA3A2),
-          BlendMode.color,
-        ),
-        child: image,
-      ),
     );
   }
 }
@@ -461,6 +450,17 @@ IconData iconForTask(TaskKind kind) => switch (kind) {
       TaskKind.mood => Icons.sentiment_satisfied_alt_rounded,
       TaskKind.weight => Icons.monitor_weight_outlined,
       TaskKind.custom => Icons.fact_check_outlined,
+    };
+
+/// Shared task-to-illustration mapping for both family roles.
+FubaoIllustration illustrationForTask(TaskKind kind) => switch (kind) {
+      TaskKind.medicine => FubaoIllustration.pill,
+      TaskKind.bloodPressure => FubaoIllustration.elderBloodPressureDevice,
+      TaskKind.bloodGlucose => FubaoIllustration.planClipboard,
+      TaskKind.walk => FubaoIllustration.elderPark,
+      TaskKind.mood => FubaoIllustration.elderMood,
+      TaskKind.weight => FubaoIllustration.planClipboard,
+      TaskKind.custom => FubaoIllustration.pencil,
     };
 
 class FubaoBottomNavigation extends StatelessWidget {

@@ -78,6 +78,7 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
       completed: 3,
       total: 4,
       icon: Icons.monitor_heart_outlined,
+      kind: TaskKind.bloodPressure,
     ),
     HealthPlan(
       id: 'healthy-life',
@@ -86,6 +87,7 @@ class DemoFubaoRepository extends ChangeNotifier implements FubaoRepository {
       completed: 1,
       total: 2,
       icon: Icons.directions_walk_rounded,
+      kind: TaskKind.walk,
     ),
   ];
 

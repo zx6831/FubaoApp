@@ -87,10 +87,7 @@ class _ChildPlansPageState extends State<ChildPlansPage> {
               )
             else
               for (var i = 0; i < repository.plans.length; i++) ...[
-                _PlanCard(
-                    plan: repository.plans[i],
-                    index: i,
-                    repository: repository),
+                _PlanCard(plan: repository.plans[i], repository: repository),
                 const SizedBox(height: 10),
               ],
             const SizedBox(height: 2),
@@ -338,10 +335,8 @@ class _MonthCard extends StatelessWidget {
 }
 
 class _PlanCard extends StatelessWidget {
-  const _PlanCard(
-      {required this.plan, required this.index, required this.repository});
+  const _PlanCard({required this.plan, required this.repository});
   final HealthPlan plan;
-  final int index;
   final FubaoRepository repository;
   @override
   Widget build(BuildContext context) => FubaoCard(
@@ -352,9 +347,8 @@ class _PlanCard extends StatelessWidget {
         child: Row(
           children: [
             FubaoIllustrationBubble(
-              illustration: index == 0
-                  ? FubaoIllustration.bloodPressureDevice
-                  : FubaoIllustration.walkingPerson,
+              key: Key('child-plan-illustration-${plan.kind.name}'),
+              illustration: illustrationForTask(plan.kind),
               size: 78,
             ),
             const SizedBox(width: 12),
